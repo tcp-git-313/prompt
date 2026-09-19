@@ -319,47 +319,134 @@ stop integration and identify owning commit/stream.
 
 ---
 
-# 4. Build Immutable Artifact
+# 4. Local Docker Validation + Freeze Candidate
 
 From the integrated DM candidate:
 
-1. Build Local Docker from the integrated source.
-2. Verify:
-   - :9421 UI
+1. Build the latest Local Docker from the integrated canonical source.
+2. Local runtime MUST be local/disposable only.
+3. Verify on localhost:9421:
+   - UI
    - /api/health
+   - auth baseline
+   - Capture automated gates
+   - AI API baseline where safe
    - runtime identity
-   - expected local/disposable contract
-3. Build/package immutable release artifact.
+   - no Production Supabase/origin/targets
 4. Record:
-   - Git SHA
+   - canonical Git SHA
+   - Docker image ID
    - image digest
-   - artifact identity
-5. Ensure the artifact that will go to staging is the same application artifact that passed Local Docker validation.
+   - release candidate ID
 
-No Production runtime secrets embedded into image.
+Only after Local Docker passes:
+FREEZE_CANDIDATE = YES
+
+After freeze:
+- no source mutation
+- no rebuild between environments
+- any source change invalidates the candidate and restarts from Local Docker validation
 
 ---
 
-# 5. Deploy Candidate to Staging
+# 5. Build + Publish Immutable Release Artifact
 
-Staging deploy is allowed by this task.
+Create the immutable release artifact from the exact candidate that passed Local Docker.
 
-Deploy the integrated immutable candidate to:
+Required identity:
+- Git SHA
+- image digest
+- release ID
+- manifest/checksum
+- source state
+- build metadata required by existing release tooling
+
+Publish the artifact to the existing release/image storage used by the central deploy flow.
+
+Critical invariant:
+
+LOCAL_DOCKER_VALIDATED_ARTIFACT
+=
+STAGING_ARTIFACT
+=
+PRODUCTION_ARTIFACT
+
+Staging and Production may inject different runtime environment/config/secrets, but MUST NOT rebuild application code.
+
+No Production runtime secrets may be embedded in the image/artifact.
+
+If publish/manifest/checksum fails:
+HARD STOP.
+
+---
+
+# 6. Central Deploy Preflight for Staging
+
+Before staging mutation, run the existing central deploy preflight path.
+
+Validate at minimum:
+- deploy.ps1 / services.yaml selected DM service
+- candidate manifest
+- artifact checksum/digest
+- source/release identity
+- staging runtime env contract
+- preserveFiles/envFile contract
+- rollback target available
+- no Production target accidentally selected
+
+The artifact referenced by staging preflight MUST match the frozen image digest from Step 5.
+
+If mismatch:
+SAME_ARTIFACT = NO
+HARD STOP.
+
+---
+
+# 7. Deploy SAME Artifact to Staging
+
+Deploy the frozen immutable candidate to:
 https://dm-staging.ticenpi.com
 
-Requirements:
-- staging environment/runtime contract
+Do not rebuild.
+
+Only switch/inject staging runtime values:
+- environment=staging
 - staging Supabase project jlsqjvehwblkeuycjoyj
+- staging public origin
+- staging secrets/config
+
+Required:
 - candidate release identity visible
+- Git SHA matches frozen candidate
+- image digest matches frozen candidate
 - health PASS
 - central auto gates PASS
 
 If staging deploy fails:
-use rollback and stop with exact root cause.
+use existing rollback flow and stop with exact root cause.
 
 ---
 
-# 6. Staging Browser UAT — Run in Parallel
+# 8. Staging Automated Gates
+
+Run release-blocking automated gates against the deployed staging candidate:
+
+- health
+- Capture Gate A
+- Capture Gate B
+- auth invalid JWT
+- auth no-entitlement
+- auth entitled
+- critical smoke
+- post-deploy audit
+
+Any blocking gate failure:
+STAGING_ACCEPTED = NO
+rollback/stop according to existing deploy policy.
+
+---
+
+# 9. Staging Browser UAT — Run in Parallel
 
 Once the integrated candidate is live on staging, run all browser UATs concurrently when possible.
 
@@ -380,7 +467,7 @@ Required truths:
 - ordinary non-entitled user can authenticate but protected DM API returns 403
 - entitled ordinary user ALLOW test must use an existing safe staging entitlement fixture or isolated test identity; do not create Production data
 
-If staging lacks a safe positive entitlement identity and creating one in staging is allowed by existing test-fixture procedures, use the established staging fixture process only. Do not invent ad-hoc Production-like data mutations.
+If staging lacks a safe positive entitlement identity and creating one in staging is allowed by established test-fixture procedures, use that existing staging fixture process only.
 
 ## UAT B — Capture Gate C
 
@@ -412,8 +499,8 @@ Real browser:
 Verify:
 - launch URL
 - release/status
-- DM opens correct public endpoint
-- no local/Tailscale/staging misrouting on Production card
+- correct public endpoint
+- no local/Tailscale/staging misrouting on the Production card/config
 
 ## UAT E — Release Gate Behavior
 
@@ -424,7 +511,54 @@ Verify:
 
 ---
 
-# 7. Go-Live Gate
+# 10. Staging Acceptance + Promotion Lock
+
+Only when automated gates and Browser UAT pass:
+
+STAGING_ACCEPTED = YES
+
+Freeze and record again:
+- SAME Git SHA
+- SAME image digest
+- SAME immutable artifact ID
+- staging release ID
+
+No rebuild is allowed after STAGING_ACCEPTED.
+
+Any subsequent application-code modification requires a new candidate and restarts from Local Docker.
+
+---
+
+# 11. Production Preflight — PREPARE ONLY
+
+This task may prepare Production deployment, but MUST NOT perform Production deploy without explicit user approval.
+
+Prepare and validate:
+- current Production release identity
+- accepted staging candidate identity
+- SAME artifact/image digest comparison
+- Production env/runtime contract
+- Production Supabase target
+- Production public origin
+- backup/restore or rollback point as required by existing deploy policy
+- previous known-good release
+- central deploy dry-run/preflight
+- candidate manifest/checksum
+- Cloudflare/origin target consistency
+
+Required invariant:
+
+STAGING_ACCEPTED_IMAGE_DIGEST
+=
+PRODUCTION_CANDIDATE_IMAGE_DIGEST
+
+If not equal:
+READY_FOR_PRODUCTION_DEPLOY = NO
+HARD STOP.
+
+---
+
+# 12. Go-Live Readiness Gate
 
 Only when all are true:
 
@@ -436,8 +570,14 @@ Only when all are true:
 - AI_BROWSER_E2E = PASS
 - HUB_SYNC = PASS
 - LOCAL_DOCKER = PASS
+- IMMUTABLE_ARTIFACT = PASS
+- SAME_ARTIFACT_LOCAL_TO_STAGING = YES
 - STAGING = PASS
+- STAGING_ACCEPTED = YES
 - RELEASE_GATES = PASS
+- PRODUCTION_PREFLIGHT = PASS
+- SAME_ARTIFACT_STAGING_TO_PRODUCTION = YES
+- ROLLBACK_READY = YES
 - NO_NEW_REGRESSIONS = YES
 - SECRETS_IN_TRACKED_DIFF = NO
 
@@ -452,7 +592,48 @@ Do not deploy Production in this task.
 
 ---
 
-# 8. SSOT Update
+# 13. Production Deploy Procedure — DOCUMENTED, NOT EXECUTED
+
+After explicit user approval in a separate execution step, Production must use the SAME accepted artifact.
+
+Required sequence:
+
+1. Re-confirm Production preflight immediately before mutation.
+2. Promote/deploy SAME image digest/artifact accepted in Staging.
+3. Inject only Production runtime config/secrets.
+4. Do NOT rebuild.
+5. Switch candidate using existing blue/green/current-release mechanism.
+6. Verify VPS origin.
+7. Verify public https://dm.ticenpi.com.
+
+Then run Production post-deploy gates:
+- health
+- critical smoke
+- release gates
+- post-deploy audit
+- release identity
+- Git SHA
+- image digest
+
+Then minimal Production human smoke:
+- Google login
+- entitled access
+- non-entitled deny where safely testable
+- Capture
+- AI
+- Hub launch
+
+On failure:
+rollback to previous known-good release according to existing deploy policy.
+
+On success:
+PRODUCTION_ACCEPTED = YES
+
+This section is procedure only. Do not execute it before explicit Production deploy approval.
+
+---
+
+# 14. SSOT Update
 
 Only after technical state is stable and staging UAT is complete:
 
