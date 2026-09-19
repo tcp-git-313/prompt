@@ -3,9 +3,11 @@
 ## Mission
 只處理 Ticenpi DM Windows 本機 9421 / 9422 runtime 問題。
 
-非常重要：
+這是 WAVE 1 平行任務。
+
+重要：
 Windows localhost 與 VPS localhost 完全不同。
-本任務不要把兩者混在一起。
+本任務禁止把兩者混在一起。
 
 已知：
 Windows 127.0.0.1:9421 = OPEN
@@ -22,17 +24,15 @@ Windows 127.0.0.1:9422 = CLOSED
 - 9422 無法開啟
 
 ## Goal
-回答：
-1. Windows 9421 現在到底是哪個 process/container？
+回答並在安全時修復：
+1. Windows 9421 現在是哪個 process/container？
 2. Windows 9422 原本應該是哪個 service？
-3. 為什麼 9422 現在沒有 listener？
+3. 為什麼 9422 沒 listener？
 4. Local Dev 與 Local Docker 正確 port 設計是什麼？
-5. 為什麼 UI 不同？
+5. UI 為什麼不同？
 
-## Tasks
-
-### 1. Windows Listener
-只在本機查：
+## Step 1 — Windows Listener
+只在 Windows 本機查：
 - 9421
 - 9422
 - 8000
@@ -41,7 +41,7 @@ Windows 127.0.0.1:9422 = CLOSED
 取得：
 PID / process / Docker container / WSL process / port mapping
 
-### 2. Local Docker
+## Step 2 — Local Docker
 查：
 - docker ps
 - docker compose projects
@@ -56,7 +56,7 @@ PID / process / Docker container / WSL process / port mapping
 - environment
 - runtime-config
 
-### 3. Local Dev
+## Step 3 — Local Dev
 找出是否另有：
 - npm dev
 - vite
@@ -66,24 +66,24 @@ PID / process / Docker container / WSL process / port mapping
 
 確認各自應使用哪個 port。
 
-### 4. Source Identity
-對目前 Local Docker / Local Dev 找：
+## Step 4 — Source Identity
+對 Local Docker / Local Dev 找：
 - repo/worktree
 - HEAD SHA
 - working tree state
 - frontend assets
 - runtime-config
 
-回答 UI 來源是：
+UI 來源只能依 evidence 分類：
 - CURRENT CANONICAL SOURCE
 - STALE IMAGE
 - OLD WORKTREE
 - DEV SERVER
 - OTHER
 
-不能猜 cache。
+禁止用「可能是 cache」當結論。
 
-### 5. 9422 Root Cause
+## Step 5 — 9422 Root Cause
 精確判定：
 A. 本來就不該存在
 B. compose 沒啟動
@@ -95,11 +95,12 @@ G. 其他
 
 必須有 evidence。
 
-### 6. 若 root cause 清楚
-只允許修 Local：
+## Step 6 — Local Fix
+root cause 已證明時，只允許修 Local：
 - local compose/dev start
 - 正確 local service
 - local port mapping
+- local config
 
 禁止：
 - VPS
@@ -107,6 +108,14 @@ G. 其他
 - Cloudflare
 - Tailscale
 - Production Docker
+
+若需改 source，使用獨立 branch/worktree，不碰其他 Agent 工作樹。
+
+## Hard Rules
+- 不需要再次等使用者確認，直接開始
+- 禁止 Production mutation
+- 禁止 git reset --hard
+- 禁止 git clean
 
 ## Final Output
 WINDOWS_9421 =
