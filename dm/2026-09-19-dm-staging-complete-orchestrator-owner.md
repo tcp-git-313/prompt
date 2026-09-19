@@ -22,9 +22,17 @@
 2. AGNES troubleshooting order is fixed:
    env source → env loader → process/container injection → backend runtime → config object → /api/ai-draw → AGNES.
    Do not first change CORS/JWT/proxy/timeouts.
-3. Same-artifact invariant:
-   LOCAL_DOCKER_VALIDATED_IMAGE_DIGEST = STAGING_IMAGE_DIGEST.
-   No rebuild between Local Docker acceptance and Staging.
+3. Release identity invariant:
+   - Local Docker MUST be rebuilt from the exact integrated candidate source and pass before any push/release build.
+   - Freeze the candidate Git SHA only after localhost:9421 proves it is no longer serving the stale image.
+   - GitHub Actions ARM64 MUST build the release image from that exact frozen candidate Git SHA.
+   - Staging MUST deploy the exact CI-produced ARM64 image digest.
+   - Do NOT require the local Windows/x86 Docker digest to equal the ARM64 release digest; architecture-specific image digests may differ.
+   - The immutable invariant for release promotion is:
+     FROZEN_CANDIDATE_GIT_SHA = CI_ARM64_SOURCE_SHA
+     and
+     STAGING_IMAGE_DIGEST = CI_ARM64_IMAGE_DIGEST.
+   - No VPS source-tree build and no rebuild after CI ARM64 publication.
 4. No secrets in Git/image/logs. Presence checks only.
 5. No Production deploy or Production data mutation.
 6. Do not use git reset --hard or git clean.
@@ -49,8 +57,20 @@ Use isolated integration worktrees. Confirm commits 86f2c97, 2325cca, f8d4f0b ex
 - Determine why the root compose became production-profile and restore the intended responsibility split without blind revert.
 - Local Docker must use local/disposable runtime only, no Production Supabase/origin/targets.
 - Staging and Production are runtime injection targets, not separate application rebuilds.
-- Rebuild localhost:9421 from the integrated candidate.
-- Verify UI, /api/health, runtime-config, source identity, auth gates, Capture A/B, AGNES runtime presence, and one minimal AI generation.
+- STOP the stale localhost:9421 stack and rebuild localhost:9421 from the integrated candidate.
+- Verify the new 9421 is actually serving the integrated candidate, not the old bundle/image.
+- Required proof before leaving this phase:
+  - LOCAL_DOCKER_REBUILT = YES
+  - LOCAL_DOCKER_STALE = NO
+  - /api/health = 200
+  - runtime-config = local/disposable
+  - candidate Git SHA / release identity matches the integrated candidate
+  - frontend bundle/build identity differs from the known stale 9421 bundle
+  - auth gates PASS
+  - Capture A/B PASS
+  - AGNES runtime presence PASS
+  - one minimal AI generation PASS
+- HARD STOP: if 9421 is still stale or source identity is ambiguous, do NOT push, do NOT trigger CI, and do NOT deploy Staging.
 
 ### C. Capture regression protection
 - Re-run Capture Gate A and Gate B against the integrated candidate.
@@ -62,19 +82,27 @@ Run A/B/C in parallel where possible.
 ## Phase 3 — Candidate validation
 Run relevant backend tests, auth/entitlement tests, scrape tests, AI tests, release gates, frontend tests/typecheck/build, compose validation, and secret scan. Any new regression blocks the candidate.
 
-## Phase 4 — Freeze immutable candidate
-Only after Local Docker passes:
-- record candidate Git SHA
-- image ID
-- image digest
-- release ID
-- manifest/checksum
+## Phase 4 — Freeze source candidate
+Only after the rebuilt Local Docker on 9421 passes:
+- record FROZEN_CANDIDATE_GIT_SHA
+- local image ID/digest as local evidence only
+- release candidate ID
 - source state
 
-After freeze, no source changes. Any source change invalidates the candidate and requires rebuild/revalidation.
+After freeze, no source changes. Any source change invalidates the candidate and requires Local Docker rebuild/revalidation.
 
-## Phase 5 — Publish artifact
-Use existing CI/release tooling. Publish the exact artifact/image validated locally. Verify published digest equals the locally validated digest. If not equal: HARD STOP.
+## Phase 5 — Push + CI ARM64 release build
+Push the exact frozen candidate Git SHA and required central deploy commit.
+Trigger the existing GitHub Actions ARM64 release build.
+
+Required proof:
+- CI_ARM64_SOURCE_SHA = FROZEN_CANDIDATE_GIT_SHA
+- CI_ARM64_IMAGE_DIGEST recorded
+- release manifest/checksum recorded
+- CI build passes
+
+Do NOT build release images on the VPS.
+Do NOT compare the Windows/x86 local image digest to the ARM64 release digest as an equality requirement.
 
 ## Phase 6 — Staging preflight
 Use central deploy candidate including f8d4f0b. Validate:
@@ -86,8 +114,21 @@ Use central deploy candidate including f8d4f0b. Validate:
 - AGNES key presence in staging runtime source, value-blind
 - no Production target selected
 
-## Phase 7 — Deploy SAME artifact to Staging
-Deploy the exact frozen image/artifact. Do not rebuild. Inject only staging runtime config/secrets. After deploy verify environment, release ID, Git SHA, image digest, staging Supabase, health, and AGNES runtime presence. If digest differs from frozen candidate: rollback and HARD STOP.
+## Phase 7 — Deploy exact CI ARM64 digest to Staging
+Deploy the exact CI-produced ARM64 image digest. Do not rebuild on the VPS and do not deploy from an extracted source tree. Inject only staging runtime config/secrets.
+
+After deploy verify:
+- environment=staging
+- release ID = new candidate release
+- Git SHA = FROZEN_CANDIDATE_GIT_SHA
+- STAGING_IMAGE_DIGEST = CI_ARM64_IMAGE_DIGEST
+- staging Supabase is correct
+- /api/health = 200
+- AGNES runtime key = PRESENT (value-blind)
+- frontend is NOT the old staging UI/bundle/release
+
+HARD STOP + rollback if any of these are false.
+In particular, if opening https://dm-staging.ticenpi.com still shows the old UI or old release identity, STAGING_DEPLOY = FAIL even if containers are healthy.
 
 ## Phase 8 — Automated Staging gates
 Run all release-blocking gates:
@@ -153,7 +194,22 @@ CANDIDATE_GIT_SHA =
 LOCAL_DOCKER =
 PASS / FAIL
 
+LOCAL_DOCKER_REBUILT =
+YES / NO
+
+LOCAL_DOCKER_STALE =
+YES / NO
+
 LOCAL_DOCKER_IMAGE_DIGEST =
+...
+
+FROZEN_CANDIDATE_GIT_SHA =
+...
+
+CI_ARM64_SOURCE_SHA =
+...
+
+CI_ARM64_IMAGE_DIGEST =
 ...
 
 AGNES_ENV_SOURCE =
@@ -183,7 +239,10 @@ ALLOW / FAIL
 PUBLISHED_IMAGE_DIGEST =
 ...
 
-SAME_ARTIFACT_LOCAL_TO_STAGING =
+CI_SOURCE_MATCHES_FROZEN_CANDIDATE =
+YES / NO
+
+STAGING_DIGEST_MATCHES_CI_ARM64 =
 YES / NO
 
 STAGING_RELEASE =
