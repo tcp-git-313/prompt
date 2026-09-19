@@ -3,6 +3,8 @@
 ## Mission
 找出並修復 Ticenpi DM Production AI 製圖「Failed to fetch」的真正 Root Cause。
 
+這是 WAVE 1 平行任務，可與 Google Identity、Local Runtime、Hub Sync、Release Gate 工程同時執行。
+
 Production:
 - URL: https://dm.ticenpi.com
 - Release: 20260919-110713
@@ -18,7 +20,18 @@ Production:
 - AI_FAILURE_REPRODUCED = NO
 - AI_ROOT_CAUSE_PROVEN = NO
 
-不要繼續靜態猜測。
+## Test Account Rule
+可以使用既有 ADMIN Google 帳號作為本次 AI Production 重現帳號。
+
+理由：
+本任務目標是定位 AI request path 的 failure boundary，不是驗證 entitlement negative path。
+
+要求：
+- 必須走真實 Production Google OAuth / Browser 流程
+- 不得使用 mock/dev auth
+- 不得手工注入 JWT
+- 不得輸出 password/JWT/token
+- 記錄是否存在 admin bypass，但本次不得用結果證明一般無訂閱使用者權限正確
 
 ## Goal
 真人重現一次 AI 製圖 → Failed to fetch，並同時取得：
@@ -29,31 +42,35 @@ Production:
 
 最後定位唯一 failure boundary。
 
-## Tasks
+## Step 1 — Production Browser Reproduction
+不要先建立猜 selector 的 Playwright 腳本。
 
-### 1. Production Browser Reproduction
-用 Playwright / Browser 開：
+先直接用真實 Production Browser 重現：
 https://dm.ticenpi.com
 
-使用已有合法 DM entitlement 的測試帳號。
+流程：
+Google OAuth 登入
+→ AI 製圖
+→ 最小 prompt
+→ 點生成
+→ 等成功或失敗
 
-操作：
-登入 → AI 製圖 → 最小 prompt → 點生成 → 等成功或失敗
-
-必須記錄：
+記錄：
 - /api/ai-draw request
 - method
 - timestamp
-- request duration
+- duration
 - response status
 - response body
 - Browser console
 - network error
 - 是否完全沒有 HTTP response
 
-禁止輸出 JWT/token。
+## Step 2 — Production Backend Logs
+必須是 VPS 上 Production Release 20260919-110713 的 active backend container logs。
 
-### 2. 同時間 Backend Logs
+不得把 Windows 本機 docker logs 當 Production evidence。
+
 對齊相同 timestamp：
 
 REQUEST_REACHED_BACKEND =
@@ -74,13 +91,13 @@ BACKEND_EXCEPTION =
 BACKEND_REQUEST_DURATION =
 ...
 
-### 3. AGNES Production Runtime
-只做 value-blind / safe check：
+## Step 3 — AGNES Production Runtime
+只做 value-blind 安全檢查：
 
-AGNES_API_KEY present =
+AGNES_API_KEY_PRESENT =
 YES / NO
 
-不要輸出 key。
+不得輸出 key。
 
 從 Production backend 相同執行環境確認：
 - DNS
@@ -88,10 +105,10 @@ YES / NO
 - connectivity
 - request timeout
 
-若安全執行最小 AGNES probe，不得把 key 印到 console/log。
+如安全執行 AGNES probe，不得把 key 顯示於 console/log/history。
 
-### 4. Timeout Chain
-確認實際：
+## Step 4 — Timeout Chain
+取得實際：
 - Cloudflare
 - router nginx
 - frontend nginx
@@ -99,33 +116,47 @@ YES / NO
 - httpx AGNES
 
 各層 timeout。
-只有直接 timeout evidence 才能判 timeout root cause。
 
-### 5. Root Cause Gate
-只有 direct evidence 才能：
+只有 direct evidence 才能判定 TIMEOUT_CAUSE = YES。
+
+## Step 5 — Root Cause Gate
 AI_ROOT_CAUSE_PROVEN = YES
+只能在 direct evidence 足夠時成立。
 
-若已證明，允許做最小 Source/config 修復並 isolated/staging verify。
-若仍無法證明：停止，不亂改。
+未證明前禁止猜測性修改：
+- Cloudflare
+- nginx timeout
+- gunicorn timeout
+- AGNES config
+- network routing
 
-### 6. 修復後驗證
-若已修復：
-Production-equivalent isolated test：
-POST /api/ai-draw
-→ HTTP success
-→ 回傳 image
-→ image data URL / URL valid
+## Step 6 — Minimal Fix
+若 root cause 已證明：
+允許做最小 Source/config 修復。
 
-並準備 Browser E2E Gate。
+若修改 TicenpiDM source：
+- 使用獨立 branch/worktree
+- base 必須包含 entitlement fix commit 86f2c97，若此 commit 不在可用 base，HARD STOP 並回報
+- 不要碰其他 Agent 的工作樹
+
+修復後跑 isolated / staging-equivalent 驗證。
 
 本輪禁止 Production deploy。
 
-### 7. Health Gap
-確認是否應把 AGNES 加入 /api/health/detail：
+## Step 7 — Health Gap
+評估 AGNES 是否應加入 /api/health/detail：
 - configured
 - endpoint reachable
 
-不要真的消耗大量生成額度做 health check。
+Health check 不得大量消耗生成額度。
+
+## Hard Rules
+- 禁止 Production deploy
+- 禁止暴露 credential/token/secret
+- 禁止修改 Production customer data
+- 禁止 git reset --hard
+- 禁止 git clean
+- 不需要再次等待使用者確認，直接執行
 
 ## Final Output
 AI_FAILURE_REPRODUCED =
@@ -179,7 +210,7 @@ YES / NO
 PRODUCTION_CHANGED =
 NO
 
-READY_FOR_PRODUCTION_RETRY =
+READY_FOR_INTEGRATION =
 YES / NO
 
 完成後停止。
