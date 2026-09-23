@@ -1,0 +1,259 @@
+DM YUCT SHADOW COMPARE CONSOLE OWNER
+
+WORKING REPO:
+F:\00-Ticenpi-SaaS\TicenpiDM
+
+EXTRACTION CORE REPO:
+F:\00-Ticenpi-SaaS\ExtractionHub
+
+GOAL
+目前不要切換正式擷取器。Legacy 必須繼續作為唯一回給 DM 使用者的結果。
+本任務要把現有 YUCT Shadow 驗證整理成真正可人工判讀的 Compare Console：
+
+DM 正常擷取
+→ Legacy 正常回使用者
+→ Extraction Core 背景執行
+→ 自動比對
+→ 寫入 SQLite
+→ /admin/extraction-shadow 顯示左右對照結果
+→ 使用者確認穩定後，才另案決定是否正式切換 Extraction Core
+
+IMPORTANT
+Shadow observation 與 Core takeover 必須分開：
+- Legacy remains primary = TRUE
+- Shadow comparison = TRUE（Local 觀察期）
+- Core production takeover = FALSE
+
+不要把「Shadow 預設 OFF」與「Core 不接管」混成同一件事。
+
+SCOPE
+只處理 Local DEV。
+
+禁止：
+- 修改 F:\00-Ticenpi-SaaS\TicenpiDM_release_wt
+- Docker build / image / container 修改
+- VPS
+- Staging
+- Production
+- 正式切換 Extraction Core
+- 改變 Legacy 回傳給使用者的結果
+- push / deploy / commit，除非最後另行批准
+
+PREFLIGHT
+開始前先回報：
+1. pwd / repo root
+2. branch
+3. HEAD
+4. git status
+5. 現有未提交 WIP
+6. 是否有其他 active writer / worktree collision
+
+如果實際工作 repo 不是 F:\00-Ticenpi-SaaS\TicenpiDM，HARD STOP。
+
+PHASE 1 — 先查現況，不先改
+
+先確認：
+1. Legacy YUCT result 的實際 schema
+2. Extraction Core YUCT result 的實際 schema
+3. Shadow SQLite schema
+4. 現有 comparison record 實際保存哪些 raw data
+5. 現有 Shadow enable / disable 由哪個 env/config 控制
+6. 一般 DM 擷取在 Shadow OFF 時是否完全不產生 comparison
+7. 是否已有 observe-only / shadow-only 模式
+8. /admin/extraction-shadow 現有 route、API、Vue component
+9. local platform_admin 403 的真正原因與既有 local-dev auth 機制
+
+先找出現有那筆：
+Legacy images = 19
+Core images = 18
+
+不要重新擷取，先從現有 SQLite / raw result 找答案。
+
+我要知道：
+- Legacy 19 張的 URL / identifier
+- Core 18 張的 URL / identifier
+- Matched
+- Legacy only
+- Core only
+- 真正少的是哪一張
+- 原本 index
+- 是否只是 query string / CDN host / resize parameter / 排序不同造成假 mismatch
+- 如果能 canonicalize 後判定同一張，就不要算成缺圖
+
+先回報 Phase 1 調查結果，再進 Phase 2。
+
+PHASE 2 — 建立 Shadow Compare Console
+
+現有頁面：
+http://localhost:9422/admin/extraction-shadow
+
+目標不是單純 log 表，而是真正左右對照。
+
+首頁：
+每筆 comparison 至少顯示：
+- 時間
+- source
+- source URL
+- Legacy status
+- Core status
+- overall MATCH / MISMATCH
+- 欄位差異數
+- Legacy/Core 圖片數
+- 可點進 detail
+
+Detail 主要版面：
+
+左側：
+DM Legacy
+
+右側：
+Extraction Core
+
+兩側使用相同欄位順序，根據實際 schema 顯示，不要發明欄位。
+
+至少涵蓋實際存在的：
+- source URL
+- title
+- price
+- address
+- community / project
+- layout
+- area
+- floor
+- description
+- contact
+- images
+- 其他 YUCT 真實欄位
+
+每個欄位顯示狀態：
+- MATCH
+- MISMATCH
+- LEGACY ONLY
+- CORE ONLY
+
+不要只顯示 JSON dump。
+可以保留 Raw JSON 展開區，但預設畫面要讓人直接看得懂。
+
+IMAGE COMPARE — 最高優先
+
+不要只顯示：
+Legacy 19
+Core 18
+
+必須算出並顯示：
+- Legacy images
+- Core images
+- Matched
+- Legacy only
+- Core only
+
+對 Legacy only / Core only：
+- 顯示縮圖
+- index
+- 原始 URL
+- canonical / normalized identifier（若有）
+- 明確區分「真的少圖」與「URL 表示不同」
+
+圖片比對前先查 YUCT URL 格式。
+避免以下差異造成假 mismatch：
+- query string
+- CDN host
+- resize params
+- http/https
+- 圖片順序
+- 同一圖片不同尺寸 URL
+
+如果現有資料有 image ID / hash / canonical URL，優先使用。
+
+SHADOW RUNTIME BEHAVIOR
+
+我要的 Local 觀察模式：
+
+使用者在 DM 正常擷取
+→ Legacy 執行
+→ Legacy 結果立即正常回給使用者
+→ Extraction Core 背景執行
+→ Compare
+→ SQLite
+→ 管理頁新增 comparison
+
+Shadow 的失敗不能阻擋 Legacy 使用者流程。
+
+如果目前只有一個 Shadow OFF 開關，導致一般擷取完全沒有 comparison，請做最小設計調整，使：
+- Local 可啟用 background observation
+- Core 不接管 user response
+- Staging / Production 不因此自動啟用
+
+不要擴大成新的 feature-flag 平台。
+
+LOCAL ADMIN
+
+目前 /admin/extraction-shadow API 在本機可能回：
+403 PLATFORM_ADMIN_REQUIRED
+
+禁止直接拔掉 Staging / Production 的 platform_admin 保護。
+
+先找既有 local-dev admin / auth fixture / test identity 機制並優先沿用。
+如果沒有安全的既有方式，先回報最小方案，不要自行加入永久 auth bypass。
+
+DATA STORAGE
+
+如果 SQLite 已保存足夠 raw Legacy/Core result，直接使用。
+
+只有在「現有資料不足以顯示左右詳細差異」時，才做最小 schema 擴充。
+
+不要為了 UI 重做 Shadow 架構。
+不要建立另一套平行 DB。
+
+LOCAL ACCEPTANCE
+
+完成後必須能證明：
+
+1. http://localhost:9422 與 backend 正常
+2. 正常擷取一筆 YUCT
+3. 使用者仍收到 Legacy 結果
+4. Shadow background compare 有執行
+5. SQLite 新增 comparison
+6. /admin/extraction-shadow 列表出現新紀錄
+7. 點進去左邊可看 Legacy、右邊可看 Extraction Core
+8. mismatch 欄位直接可見
+9. 圖片差異可以直接看到是哪一張
+10. Shadow compare 失敗不影響 Legacy
+11. Core takeover 仍是 OFF
+12. Staging / Production 完全未修改
+
+TESTS
+
+沿用現有測試架構。
+至少補足本任務實際修改對應的：
+- backend compare / persistence
+- image normalization / diff
+- frontend compare view
+- shadow observation 不影響 Legacy response
+
+不要為了數量新增低價值測試。
+
+FINAL REPORT
+
+最後只回報：
+
+1. 19 vs 18 真正差哪一張
+2. 是真缺圖還是假 mismatch
+3. 之前一般擷取為什麼後台沒資料
+4. Shadow observation 現在是否已能 Local ON
+5. Core takeover 是否仍 OFF
+6. 修改檔案
+7. SQLite 是否 schema change
+8. 管理頁實際路由
+9. Local 測試結果
+10. 尚未驗證項目
+11. 是否有任何 Staging / Production 變更（預期 NO）
+
+HARD STOP
+以下任何情況立即停止並回報，不自行繞過：
+- 需要修改 Production/Staging auth 才能完成 Local console
+- 需要切換 Core 正式接管
+- 需要 destructive DB migration
+- 發現 Legacy user response 會被 Shadow 影響
+- repo/worktree 與指定路徑不符
+- 發現 unrelated active writer collision
