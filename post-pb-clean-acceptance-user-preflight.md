@@ -1,139 +1,200 @@
 # POST P-B — CLEAN STAGING ACCEPTANCE USER PREFLIGHT
 
+## TASK
+P-B — Clean Staging Acceptance User Preflight
+
 ## ROLE
 POST ACCEPTANCE IDENTITY PREFLIGHT OWNER
 
-## MODEL
+## RECOMMENDED MODEL
 LUNA Medium
 
+## ESTIMATED ENGINEERING SIZE
+Small to Medium
+
 ## MODE
-READ-ONLY ONLY — ZERO-MUTATION PARALLEL TASK
+READ-ONLY PREFLIGHT — ZERO MUTATION
 
-Goal:
-Find the safest clean Staging Acceptance identity for Post so release testing no longer depends on legacy `tcp.a2026i@gmail.com` data.
+## OBJECTIVE
+Identify whether Post Staging already has one clean, existing Auth identity suitable for the next Post Acceptance run, independent of ambiguous legacy data associated with `tcp.a2026i@gmail.com`.
 
-This task may run in parallel with:
+Produce evidence-backed identity and readiness findings, or specify the minimum later action needed. This task does not create or repair an identity and does not run acceptance E2E.
+
+## SCOPE AND ENVIRONMENT
+- Work only on the Post repository and Staging resources.
+- Repository: `F:\00-Ticenpi-SaaS\TicenpiPost`
+- The known Staging Supabase project is `jlsqjvehwblkeuycjoyj`. Verify the active project from current, non-secret configuration before any data inspection. If configuration is missing, ambiguous, or points elsewhere, stop with `HARD_STOP`.
+- Never inspect or contact the Production Supabase project for this task.
+- Do not infer current runtime state from old notes, a project name alone, or a configured URL that cannot be tied to the active project. Record what was actually observed and when.
+- Do not print, copy into the report, or persist access tokens, JWTs, passwords, OAuth credentials, service-role keys, or other secrets. Redact secret values in command output and artifacts.
+
+This is a read-only task and may run in parallel with:
 - platform_admin identity audit
 - Central Seat work
-- extension/launcher readiness audit
+- extension/Launcher readiness audit
 
-## HARD RULES
+## REQUIRED READING
+Before inspecting identities, read:
+- `_charter/adr/ADR-001-tenant-identity-entry-point.md`
+- `_charter/adr/ADR-002-central-commercial-post-tenant-seat.md`
+- the current Post Acceptance / Staging handoff or checklist, if one exists
+- directly relevant project memory or evidence records, if available
 
-DO NOT:
-- create Auth users
-- delete Auth users
-- modify customer memberships
-- assign/release Seat
-- modify entitlement
-- modify Post tenant mappings
-- modify DB rows
-- modify source
-- commit
-- push
-- change Supabase settings
+Treat ADR-002 v3 (accepted 2026-09-22) as the current design contract unless the repository contains a newer accepted decision. Verify its current status. Relevant rules include:
+- 1 Auth user = 1 Post tenant; identity is the stable Auth `user_id`, never email alone.
+- With commercial gate enabled, access requires active commercial eligibility; for company customers, Seat policy may also require an assigned Seat.
+- `TICENPI_SEAT_POLICY=skip` is permitted only in local/Staging and is the temporary pre-Central-Seat Acceptance path when explicitly configured and approved. Never assign a Seat in this task.
+- `GET /api/session/state` is read-only. `POST /api/session/bootstrap` is the explicit tenant creation path. This task must not call bootstrap.
+- Staging acceptance is not Production readiness.
 
-This task only discovers candidates and prepares the exact next action.
+If a newer accepted ADR, task handoff, or runtime configuration conflicts with these notes, stop and report the conflict; do not resolve it by changing settings.
 
-## 1. READ FROZEN POST IDENTITY RULES
+## ABSOLUTE NO-MUTATION RULES
+Do not:
+- create, invite, delete, disable, update, or sign in as any Auth user
+- issue OAuth login or start a browser session
+- create, change, assign, or release customer memberships, entitlements, products, test-access flags, Post tenant mappings, or Seats
+- call any write RPC, bootstrap endpoint, migration, seed, repair, or application write API
+- change Supabase settings, secrets, environment variables, or project configuration
+- modify source, local data, test data, or repository files
+- commit, push, deploy, or open a PR
+- use credentials against Production
 
-Read:
-- `F:\00-Ticenpi-SaaS\TicenpiPost\_charter\adr\ADR-001-tenant-identity-entry-point.md`
-- `F:\00-Ticenpi-SaaS\TicenpiPost\_charter\adr\ADR-002-central-commercial-post-tenant-seat.md`
-- relevant Post memory files if available
+Use read-only queries only. If the available access path cannot guarantee read-only behavior, do not use it; report the missing evidence. Do not expose secrets while proving which project or account is active.
 
-Frozen rules:
-- 1 User = 1 Post Tenant
-- user identity key = stable Auth user_id, not email
-- new clean Acceptance user should not inherit legacy Post tenant ambiguity
+## PREFLIGHT STEPS
 
-## 2. DISCOVER EXISTING SAFE CANDIDATES
+### 1. Establish the current source and environment
+Record:
+- current date/time and timezone
+- repository path and current Git branch/commit
+- clean/dirty working-tree state (do not alter it)
+- accepted ADR version/status
+- Staging project identity proven from current configuration or dashboard context, with secret values redacted
+- whether current Post Staging runtime/config evidence is available and its timestamp
 
-Read-only inspect Staging identities suitable for Acceptance.
+Stop with `HARD_STOP` if the active target cannot be proven to be Staging. Do not query Auth or database data before resolving that boundary.
 
-A candidate is CLEAN only if all can be proven:
+### 2. Read identity and tenant rules
+From the accepted ADR and implementation, determine the actual current contracts for:
+- Auth identity key and duplicate-email handling
+- `tenant_members` uniqueness and whether a user can already have a tenant
+- Post tenant ownership and legacy/test-tenant definitions
+- commercial context and the current Staging pre-Seat path
+- the effect of `TICENPI_COMMERCIAL_GATE_ENABLED`, `TICENPI_AUTO_TENANT_BOOTSTRAP`, and `TICENPI_SEAT_POLICY`
 
-- exactly one Auth user_id for the chosen email
-- no duplicate same-email Auth identity
-- no existing conflicting Post tenant mapping
-- no legacy TEST tenant ownership
-- commercial access can be established through normal Staging flow
-- not the legacy `tcp.a2026i@gmail.com` identity
-- not a production-only identity
+Distinguish design requirements from observed current implementation/configuration. Do not claim a setting is active based on ADR text alone.
 
-Prefer an already existing dedicated staging/test user if one is clearly intended for this purpose.
+### 3. Discover existing candidate identities using read-only evidence
+Prefer an already designated Staging test/acceptance identity. Consider alternatives only if their Staging purpose and ownership are clear.
 
-Do not choose a user merely because it has admin privileges.
+For each plausible candidate, establish as much of the following as the available read-only access allows:
+- candidate email and stable Auth `user_id`
+- exact number of Auth identities with that email, including deleted/banned state if the API exposes it
+- whether the identity belongs to Staging and is not Production-only
+- active customer membership count and customer type
+- active Post entitlement / commercial-context result and source
+- existing Post tenant count, tenant ID(s), and owner mapping
+- whether any mapping or tenant is known to be legacy, test-only, conflicting, or ambiguous
+- relevant `test_access` state, if applicable
+- whether the account is the excluded legacy identity `tcp.a2026i@gmail.com`
 
-## 3. CENTRAL SEAT AWARENESS
+Candidate status:
+- **CLEAN** only when evidence proves one unambiguous Staging Auth user, no conflicting/legacy Post tenant association, and a viable current Staging commercial path.
+- **NOT CLEAN** when evidence demonstrates duplicate identity, conflicting or legacy tenant ownership, Production-only use, or unavailable commercial eligibility.
+- **UNKNOWN** when any required property cannot be proven. Do not convert missing evidence into a pass.
 
-Central Seat may still be under construction.
+Do not choose a candidate merely because it is an administrator or has broad privileges. `platform_admin` does not by itself prove ordinary-user Acceptance readiness.
 
-For the current pre-Seat Post Acceptance phase, determine whether the candidate can use the existing Staging commercial path with Seat skip as already approved.
+Do not log in, create a session, call `/api/session/bootstrap`, or mutate any state while assessing candidates.
 
-Do not assign Seat.
+### 4. Assess the pre-Seat Staging path
+Determine from current Staging configuration and available read-only evidence whether a CLEAN candidate can use the explicitly approved pre-Seat path. Confirm separately:
+- commercial gate state
+- auto-tenant-bootstrap state
+- Seat policy state
+- whether the candidate's customer/product context qualifies under the current implementation
+- whether the first successful product flow would be Google Login → Commercial Auth → `POST /api/session/bootstrap` → exactly one Phase 2 tenant → Main UI
 
-Record whether the same candidate can later be used for:
+This is a readiness assessment only. Do not execute that flow. If any required flag or business state is unknown, report `UNKNOWN` and do not mark the path safe.
+
+Record whether this same identity is suitable for later:
 - individual entitlement E2E
-- business assigned-seat E2E
+- company assigned-Seat E2E
 
-These may be different users.
+These use cases may require different identities. Seat E2E is `NO` unless an existing assignment and all required Central Seat conditions are proven; do not create one.
 
-## 4. IF A CLEAN EXISTING USER EXISTS
+### 5. If no CLEAN candidate is proven
+Do not create a user or alter access. Prepare the minimum later action without assuming an email address or inventing user IDs:
+- whether the user must first complete a user-controlled Google sign-up in Staging
+- the minimum Central customer membership/product entitlement required
+- whether customer type and Seat policy imply a later Seat assignment
+- what exact read-only checks must pass before a separately authorized writer action
+- expected first Post flow
 
-Report:
+Clearly separate user action from a future authorized writer action. No writer action is part of this task.
 
-CANDIDATE_EMAIL =
-CANDIDATE_USER_ID =
-DUPLICATE_EMAIL_AUTH_USERS = 0/1/...
-EXISTING_POST_TENANT =
-LEGACY_DATA_PRESENT =
-COMMERCIAL_CONTEXT =
-SAFE_FOR_PRE_SEAT_ACCEPTANCE = YES/NO
+## EVIDENCE QUALITY
+For each conclusion, cite the exact source (file and line, sanitized query/result, or dashboard/API observation), timestamp, and environment. Keep raw evidence local and avoid saving secrets or unnecessary personal data.
 
-Do not log in or mutate anything unless login itself is already part of an explicitly existing safe test harness. Prefer no session mutation in this audit.
+Do not treat these as sufficient by themselves:
+- historical memory or handoff claims
+- static source code when claiming current runtime configuration
+- a successful identity lookup without checking tenant ownership and commercial eligibility
+- an Auth email match without stable `user_id` and duplicate count
+- `platform_admin` privilege
+- local/fixture evidence as Staging evidence
+- readiness assessment as completed login or human E2E
 
-## 5. IF NO CLEAN USER EXISTS
+If a database/API query is unavailable or its read-only nature is uncertain, mark the affected fields `UNKNOWN`; do not improvise a privileged query.
 
-Do NOT create one.
+## REQUIRED FINAL REPORT
+Return a concise report using this exact structure:
 
-Prepare exact user action / later writer action:
-
-REQUIRED_NEW_TEST_IDENTITY =
-RECOMMENDED_PURPOSE =
-MINIMUM_CENTRAL_MEMBERSHIP =
-MINIMUM_ENTITLEMENT =
-EXPECTED_FIRST_POST_FLOW =
-
-Expected flow:
-
-Google Login
-→ Commercial Auth
-→ POST /api/session/bootstrap
-→ exactly one Phase2 tenant
-→ Main UI
-
-Do not include Seat assignment yet unless Central Seat is already READY.
-
-## 6. FINAL REPORT
-
+```text
 PHASE = CLEAN ACCEPTANCE USER PREFLIGHT
 RESULT = PASS / NEED_NEW_USER / HARD_STOP
 
-RECOMMENDED_ACCEPTANCE_EMAIL =
-RECOMMENDED_USER_ID =
-DUPLICATE_EMAIL_COUNT =
-EXISTING_TENANT_COUNT =
-LEGACY_DATA_PRESENT =
+ENVIRONMENT = STAGING / UNKNOWN
+STAGING_PROJECT_ID = <verified ID or UNKNOWN>
+EVIDENCE_AS_OF = <timestamp and timezone>
+REPOSITORY_COMMIT = <sha>
+WORKTREE = CLEAN / DIRTY
 
-SAFE_FOR_PRE_SEAT_ACCEPTANCE =
-SAFE_FOR_LATER_SEAT_E2E =
+RECOMMENDED_ACCEPTANCE_EMAIL = <value or NONE/UNKNOWN>
+RECOMMENDED_USER_ID = <stable Auth user_id or NONE/UNKNOWN>
+DUPLICATE_EMAIL_COUNT = <integer or UNKNOWN>
+EXISTING_TENANT_COUNT = <integer or UNKNOWN>
+EXISTING_TENANT_IDS = <IDs or NONE/UNKNOWN>
+LEGACY_DATA_PRESENT = YES / NO / UNKNOWN
+COMMERCIAL_CONTEXT = PASS / FAIL / UNKNOWN
+COMMERCIAL_GATE_ENABLED = YES / NO / UNKNOWN
+AUTO_TENANT_BOOTSTRAP_ENABLED = YES / NO / UNKNOWN
+SEAT_POLICY = require / skip / UNKNOWN
+SAFE_FOR_PRE_SEAT_ACCEPTANCE = YES / NO / UNKNOWN
+SAFE_FOR_INDIVIDUAL_E2E = YES / NO / UNKNOWN
+SAFE_FOR_LATER_SEAT_E2E = YES / NO / UNKNOWN
+
+EVIDENCE =
+- <claim>: <source, environment, timestamp>
 
 IF_NEW_USER_REQUIRED:
-USER_ACTION =
-WRITER_ACTION_AFTER_APPROVAL =
+USER_ACTION = <specific action or NONE>
+MINIMUM_FUTURE_WRITER_ACTION = <specific action or NONE>
+PRECONDITIONS_FOR_WRITER = <checks or NONE>
 
-NEXT =
+BLOCKERS =
+- <specific blocker or NONE>
 
-No mutation.
-No commit.
-No push.
+NEXT = <single concrete next step>
+MUTATION = NONE
+COMMIT = NONE
+PUSH = NONE
+```
+
+Use:
+- `PASS` only when a CLEAN candidate and current pre-Seat Staging readiness are proven.
+- `NEED_NEW_USER` when no CLEAN candidate exists or can be proven, but Staging boundary and required next action are clear.
+- `HARD_STOP` when the Staging boundary is unproven, requirements conflict, or continuing could risk Production or mutation.
+
+Never report Acceptance E2E as completed by this preflight.
