@@ -1,58 +1,59 @@
-# VOIP VAD / Barge-in Live Test — Phase 1 Completion
+# VOIP VAD／Barge-in 真人測試 — Phase 1 完成
 
-## Role
-VOIP VAD / BARGE-IN DIAGNOSTIC OWNER
+## 角色
 
-## Current verified state
-The previous audit and deployment already confirmed:
+VOIP VAD／BARGE-IN 診斷負責人
 
-- Production uses Asterisk + AudioSocket on port 9090.
-- Runtime file: `/usr/local/lib/saas/saas_streaming_server.py`.
-- Shadow diagnostic instrumentation is deployed.
-- Current runtime SHA256 begins with `9238c8ea...`.
-- `saas-streaming` restarted cleanly: PID 439 → 1837.
-- Silero VAD loaded and port 9090 is listening.
-- `SAAS_BARGEIN=0` remains unchanged.
-- `SAAS_VAD_THRESH` is unset, therefore effective threshold = 0.5.
-- Asterisk was not restarted.
-- Production dialplan contains AudioSocket and MixMonitor.
-- No historical data can answer the live VAD questions; a new human test is required.
+## 目前已知狀態
 
-Continue from STEP 4. Do not repeat the full architecture audit.
+上一輪稽核與部署報告記載：
 
-## Goal
-Complete the live A/B/C diagnostic and determine whether caller speech is visible to AudioSocket/Silero VAD while AI audio is playing.
+- Production 使用 Asterisk + AudioSocket，AudioSocket 埠為 9090。
+- Runtime 檔案為 `/usr/local/lib/saas/saas_streaming_server.py`。
+- Shadow diagnostic instrumentation 已部署。
+- Silero VAD 已載入，9090 應在 listening。
+- `SAAS_BARGEIN=0` 必須維持不變。
+- 若 `SAAS_VAD_THRESH` 未設定，有效 threshold 應為 0.5。
+- Asterisk 不得因本任務重啟。
+- Production dialplan 應包含 AudioSocket 與 MixMonitor。
+- 歷史資料無法回答本次真人 VAD 問題，必須取得新的真人測試資料。
 
-This phase is diagnostic only. Do not enable barge-in and do not tune production behavior.
+開始執行前，先以即時證據重新核對上述狀態；不要把歷史報告當成目前 runtime 證據。不要重做完整架構稽核。
 
-## Allowed minimal correction
-The previous shadow logger only emitted during `PLAYING`, but Test B requires a `LISTENING` baseline.
+## 目標
 
-Change only the diagnostic condition from:
+完成真人 A／B／C 診斷，判定在 AI 音訊播放期間，caller speech 是否能被 AudioSocket／Silero VAD 看見。
+
+本階段只做診斷。不得啟用 barge-in，也不得調整 production 行為。
+
+## 允許的最小修正
+
+如果目前 shadow logger 只在 `PLAYING` 狀態輸出，而 Test B 需要 `LISTENING` baseline，只能把診斷條件從：
 
 `state == PLAYING`
 
-to the equivalent of:
+改為等價的：
 
 `state == PLAYING OR state == LISTENING`
 
-Keep the same shadow metrics:
+只保留既有 shadow metrics：
 
 - monotonic timestamp
-- call/ASID
+- call／ASID
 - state
 - RMS dBFS
 - peak dBFS
 - Silero VAD probability
-- speech true/false
-- consecutive speech ms if already available
+- speech true／false
+- 若原本已有，保留 consecutive speech ms
 
-Sampling should remain approximately 100–200 ms.
+取樣頻率維持約 100–200 ms。本 logger 只能提供 observability，不得改變既有 VAD decision path。
 
-This is observability only. Do not change the existing VAD decision path.
+若已經同時記錄 `PLAYING` 與 `LISTENING`，不要再次修改程式。
 
-## Hard boundaries
-Do not change:
+## 硬性邊界
+
+不得變更：
 
 - `SAAS_BARGEIN=0`
 - VAD threshold
@@ -62,115 +63,128 @@ Do not change:
 - Asterisk gain
 - STT
 - TTS
-- dialogue/walker logic
+- dialogue／walker logic
 - Groq
-- GPU/CUDA configuration
+- GPU／CUDA configuration
 - production dialogue behavior
 
-Do not restart Asterisk.
+不得重啟 Asterisk。
 
-If the minimal logger change requires restarting only `saas-streaming`, that is allowed after syntax validation. Record before/after PID and verify port 9090/service health.
+如果最小 logger 修正確實需要只重啟 `saas-streaming`，則必須先通過 syntax validation，且記錄修改前後 PID，並驗證 9090 與 service health。除此之外不得重啟服務。
 
-## Human live test procedure
-Prepare the logger and journal capture first. Do not originate until the user says they are ready.
+## 執行順序
 
-Use one real call if possible.
+先準備 logger 與 journal capture。準備完成後，必須等待使用者明確說「可以開始」或同等意思，才可以 originate／撥出真人測試電話。使用者尚未明確允許前，不得撥號。
 
-### Test A — AI ONLY
-During an AI playback segment, the user stays completely silent.
+盡量使用同一通真人電話完成 A、B、C。
 
-Capture the PLAYING interval and calculate:
+### Test A — 只有 AI 播放
 
-- RMS median/max
-- peak median/max
-- VAD probability median/max
-- any speech=true events
+在 AI playback segment 期間，使用者完全保持安靜。
 
-This is the playback-leakage baseline.
+擷取 `PLAYING` interval 並計算：
 
-### Test B — CALLER ONLY
-When the system is in LISTENING state and AI is not playing, the user says:
+- RMS median／max
+- peak median／max
+- VAD probability median／max
+- `speech=true` 事件數
+
+這是 playback leakage baseline。
+
+### Test B — 只有 caller 說話
+
+當系統處於 `LISTENING` 且 AI 沒有播放時，使用者說：
 
 `你好，我現在有在講話`
 
-Capture the LISTENING interval and calculate the same metrics.
+擷取 `LISTENING` interval，計算與 Test A 相同的 metrics。
 
-This is the normal caller-speech baseline.
+這是正常 caller-speech baseline。
 
-### Test C — REAL BARGE-IN SHADOW
-During AI playback, the user deliberately speaks over the AI twice:
+### Test C — Barge-in shadow
+
+在 AI playback 期間，使用者刻意壓過 AI 說兩次：
 
 1. `等一下`
 2. `我有問題`
 
-`SAAS_BARGEIN` must remain 0, so the AI continuing to speak is expected.
+`SAAS_BARGEIN` 必須維持 0，因此 AI 繼續說話是預期結果。
 
-For each interruption, record:
+每次 interruption 記錄：
 
-- approximate caller speech start
+- caller speech approximate start
 - RMS rise
 - peak
-- VAD probability rise/max
-- whether speech=true occurred
-- delay from caller speech onset to VAD rise if measurable
+- VAD probability rise／max
+- 是否出現 `speech=true`
+- 若可量測，caller speech onset 到 VAD rise 的 delay
 
-Use MixMonitor only as a timing/reference recording. Do not treat MixMonitor as the VAD input path.
+MixMonitor 只能作為 timing／reference recording，不得把 MixMonitor 當成 VAD input path。
 
-## Analysis
-Compare A / B / C and classify only from evidence:
+## 分析規則
 
-- **A — VAD detects caller correctly; barge-in is only disabled**
-- **B — playback leakage itself causes high/false VAD**
-- **C — caller audio is attenuated on the AudioSocket path during playback**
-- **D — audio level rises but Silero classification does not**
-- **E — AudioSocket does not receive meaningful caller audio during playback**
-- **F — inconclusive**
+只能依據實測證據分類：
 
-Multiple findings are allowed only when supported by measured data.
+- **A — VAD 正確偵測 caller；只是 barge-in 被關閉**
+- **B — playback leakage 本身造成高音量／false VAD**
+- **C — 播放期間 caller audio 在 AudioSocket path 被衰減**
+- **D — audio level 上升，但 Silero classification 沒有上升**
+- **E — 播放期間 AudioSocket 沒收到有意義的 caller audio**
+- **F — 證據不足，無法判定**
 
-Do not assume HT813 half-duplex is the cause unless the live measurements support it.
+只有在 measured data 支持時，才允許同時提出多個 findings。除非 live measurements 支持，不得假設 HT813 half-duplex 是原因。
 
-## Final report
-Return only:
+## 最終回報格式
+
+只回報以下內容，不要實作修正：
 
 ### CURRENT
-- SAAS_BARGEIN
+
+- `SAAS_BARGEIN`
 - effective VAD threshold
 - runtime SHA
-- service/PID
-- whether PLAYING and LISTENING shadow logging worked
+- service／PID
+- `PLAYING` 與 `LISTENING` shadow logging 是否正常運作
 
 ### TEST A — AI ONLY
-- RMS median/max
-- peak median/max
-- VAD median/max
-- speech=true count
+
+- RMS median／max
+- peak median／max
+- VAD median／max
+- `speech=true` count
 
 ### TEST B — CALLER ONLY
-- same metrics
+
+- 相同 metrics
 
 ### TEST C — BARGE-IN
-For each phrase:
+
+每個 phrase 都列出：
+
 - phrase
-- RMS/peak
+- RMS／peak
 - VAD max
-- speech detected YES/NO
+- speech detected YES／NO
 - approximate detection delay
 
 ### FINDING
-- classification A/B/C/D/E/F
+
+- classification A／B／C／D／E／F
 - concise evidence
 
 ### BLOCKER
-- the single most important blocker, if proven
+
+- 若已證實，列出單一最重要 blocker
 
 ### NEXT STEP
-- one smallest safe next experiment only
+
+- 只提出一個最小且安全的下一個實驗
 
 ### RUNTIME CHANGES
+
 - files changed
 - restart details
-- `SAAS_BARGEIN remains 0 = YES/NO`
+- `SAAS_BARGEIN remains 0 = YES／NO`
 - Asterisk restart = NO
 
-Stop after the report. Do not implement the fix.
+回報完成後停止。不要實作 fix。
