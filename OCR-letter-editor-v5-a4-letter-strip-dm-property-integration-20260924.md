@@ -10,17 +10,18 @@ GPT-5.6 Luna — High
 
 ## EXECUTION MODE
 
-You are a constrained implementation + verification agent.
+You are a constrained implementation + browser-verification agent.
 
-This task continues from the current OCR Letter Editor V2/V3/V4 working tree.
+This task continues directly from the current OCR Letter Editor working tree after V4 Acceptance.
 
-Do NOT redesign from scratch.
-Do NOT reset the working tree.
-Do NOT discard current uncommitted Letter Editor work.
-Do NOT refactor unrelated areas.
-Do NOT change backend/DB/Docker/deploy/Staging/Production unless a HARD STOP condition is reached.
+Do NOT restart V4.
+Do NOT redo already-passed editor mechanics.
+Do NOT redesign the editor from scratch.
+Do NOT reset or discard the current working tree.
+Do NOT commit or push.
+Do NOT touch backend / DB / Docker / deploy / Staging / Production unless a HARD STOP condition is reached.
 
-Your job is to implement the exact V5 changes below, reuse proven DM behavior where explicitly requested, and validate in the real browser.
+Your job is to implement the remaining V5 product changes and verify them in the real browser.
 
 ---
 
@@ -34,7 +35,7 @@ DM reference project:
 
 F:\00-Ticenpi-SaaS\TicenpiDM
 
-Local canonical host:
+Canonical local host:
 
 http://localhost:3013/
 
@@ -48,13 +49,114 @@ http://localhost:3013/letter
 
 ---
 
-# GIT SAFETY — CRITICAL
+# CURRENT AUTHORITATIVE BASELINE — V4 ACCEPTANCE
 
-Current HEAD may still be:
+Use this as the starting state.
 
+Source:
+
+Path:
+F:\00-Ticenpi-SaaS\TicenpiLetter
+
+Branch:
+master
+
+HEAD:
 4aa0fa90693347065411acf75b9f26524200d65a
 
-with V2/V3/V4 changes uncommitted on top.
+V4 Acceptance reported:
+
+LOGO:
+- direct select PASS
+- resize smaller PASS
+- resize larger PASS
+- move PASS
+- F5 restore PASS
+- LOGO_RESIZE PASS
+
+LINE QR:
+- direct select PASS
+- resize smaller PASS
+- resize larger PASS
+- move PASS
+- F5 restore PASS
+- QR_RESIZE PASS
+
+Sticker:
+- repeated rotate PASS
+- resize PASS
+- drag PASS
+- flip PASS
+- z-order PASS
+- double click PASS
+- remains visible PASS
+- reset transform PASS
+- F5 restore PASS
+- STICKER_TRANSFORM_STRESS PASS
+
+Normal Letter persistence:
+- IndexedDB/F5 restore PASS
+
+開發信條 lifecycle:
+- memory-only PASS
+- close/reopen preserved PASS
+- F5 clears PASS
+
+Routing:
+- / = OCR
+- /ocr absent
+- /letter = Letter editor
+- back = /
+
+Validation:
+- git diff --check PASS
+- frontend tests 36/36 PASS
+- build PASS
+
+Do NOT spend this task rebuilding these already-passed mechanics.
+
+Only run a light regression smoke after V5 changes.
+
+---
+
+# V4 ITEMS THAT REMAIN UNVERIFIED
+
+## RemoveBG
+
+Previous fixture:
+
+photo.png
+
+was only 30 bytes and was NOT a real portrait.
+
+Therefore previous status was:
+
+REMOVE_BG_INPUT_REQUIRED
+
+This is NOT proof that the V4 transform/editor mechanics are broken.
+
+V5 must verify RemoveBG only with a real portrait image.
+
+## Old fixed-200 開發信條 PDF test
+
+Previous V4 acceptance attempted a fixed 200-entry PDF and timed out.
+
+That acceptance scenario is now obsolete.
+
+V5 product behavior is:
+
+actual current data count N
+→ generate exactly N 開發信條
+
+Do NOT preserve a hard-coded 200-entry product assumption.
+
+Do NOT spend time fixing the old fixed-200 implementation as a separate feature.
+
+V5 replaces it with the A4 WYSIWYG Letter Strip implementation below.
+
+---
+
+# GIT SAFETY
 
 At task start capture:
 
@@ -63,6 +165,8 @@ At task start capture:
 - git status
 - tracked dirty files
 - untracked files
+
+Current V2/V3/V4 work is expected to be uncommitted.
 
 Never:
 
@@ -79,7 +183,7 @@ Work on top of the current working tree.
 
 ---
 
-# EXISTING PRODUCT CONTRACT — PRESERVE
+# PRODUCT CONTRACT — PRESERVE
 
 Routing:
 
@@ -96,49 +200,48 @@ OCR
 
 User-visible ORC naming must remain removed.
 
-Internal/backend compatibility identifiers containing "orc" may remain if they are actual contracts.
+Backend/internal compatibility identifiers containing "orc" may remain if they are actual contracts.
 
 ---
 
-# V5 PRIMARY GOALS
+# V5 PRIMARY WORKSTREAMS
 
-This task has FOUR main workstreams:
+There are FOUR required workstreams:
 
-A. Fix real hover tooltips + remove duplicate Letter Strip settings from Envelope Info
+A. Fix real Icon Rail hover tooltips + remove duplicate 開發信條 controls from 信封資訊
 
-B. Rebuild 開發信條 as true A4 WYSIWYG batch preview:
-   - number of strips = actual current data count
-   - screen/print/PDF share one renderer
+B. Rebuild 開發信條 into true A4 WYSIWYG batch preview:
+   - current data count = generated strip count
+   - screen / print / PDF share the same renderer
    - session-memory only
+   - no fixed 200 assumption
 
-C. Fix OCR RemoveBG by comparing the proven working DM implementation
+C. Fix and verify OCR RemoveBG using DM's proven working implementation as reference
 
-D. Replace the simplistic Add Object flow with DM-style Property Object integration:
+D. Upgrade 新增物件 to support DM-style property object integration:
    - paste property URL
    - extract property data
-   - choose a property frame/template
+   - choose a frame/template
    - add property object to front/back A4
-   - edit/select/resize/move with shared object model
+   - use existing selectedObject mechanics
 
-Do not broaden beyond these areas except for minimal regression fixes.
+Do not broaden beyond these four workstreams except for minimum regression fixes.
 
 ---
 
-# A. ICON HOVER TOOLTIP — CURRENT BUG
+# A1. ICON HOVER TOOLTIP — REAL BROWSER BUG
 
 Current report:
 
-Hovering the left Icon Rail does NOT visibly show text.
+Hovering the left Icon Rail does not visibly show text.
 
-Treat this as a BUG.
+Treat this as a real UI bug.
 
-Do not count native browser title text as completion.
+Native browser title text is NOT sufficient.
 
-Implement a real visible tooltip component/style.
+Implement a real visible tooltip.
 
-All main icons must show Traditional Chinese text on hover.
-
-Expected icon tooltips include:
+Required tooltips:
 
 - 返回 OCR
 - 收件人
@@ -152,184 +255,199 @@ Expected icon tooltips include:
 - 列印 / 匯出
 - 全螢幕
 
-Tooltip requirements:
+Requirements:
 
 - appears after a short hover delay around 300–500ms
 - renders to the RIGHT of the icon rail
-- is not clipped by overflow:hidden
-- is above the A4 canvas / panels via correct z-index
+- not clipped by overflow:hidden
+- correct z-index above canvas/panels
 - disappears when pointer leaves
-- does not resize/reflow the icon rail
-- remains legible in current light theme
-- no permanent icon labels
+- does not resize/reflow icon rail
+- readable in current light theme
+- no permanent text labels
 
-Browser visual validation is required.
-
-PASS requires actual tooltip text visible in the browser.
+PASS requires actual visible text in the real browser.
 
 ---
 
-# B. 開發信條 — INDEPENDENT MAIN ICON
+# A2. REMOVE DUPLICATE 開發信條 FROM 信封資訊
 
-開發信條 remains an independent main Icon Rail entry.
+Because 開發信條 is now an independent main icon, 信封資訊 must not contain duplicate Letter Strip controls.
+
+Remove from 信封資訊:
+
+- 開發信條
+- 開發信條字體
+- 開發信條列印
+- 開發信條 PDF
+- any other 開發信條-only control
+
+Preserve true envelope/postal settings:
+
+- 寄件人姓名
+- 寄件地址
+- 郵遞區號
+- 印刷品 ON/OFF
+- envelope recipient display 姓氏 / 貴住戶
+- other legitimate envelope-only settings
+
+Do not remove valid envelope functionality.
+
+---
+
+# B1. 開發信條 — INDEPENDENT MAIN ICON
+
+Keep 開發信條 as its own main Icon Rail item.
 
 Do NOT move it under Print/Export.
 
-Hover:
-
-開發信條
-
-Click:
-
-open a large centered modal immediately.
+Clicking it opens a large centered modal immediately.
 
 Recommended modal size:
 
 - width: 90–94vw
 - height: 90–94vh
 
-Do not use a narrow list modal.
-
 ---
 
-# B1. 開發信條 COUNT = REAL CURRENT DATA COUNT
+# B2. 開發信條 COUNT = ACTUAL CURRENT DATA COUNT
 
-Current behavior must NOT assume or manufacture 200 entries.
+This is a HARD REQUIREMENT.
+
+Use the current authoritative recipient/source data already present in Letter Editor.
 
 Rule:
 
-current usable recipient/source data count
+valid current source record count N
 =
-開發信條 count
+generated 開發信條 count N
 
 Examples:
 
-3 current records
+3 records
 → 3 strips
 
-47 current records
+47 records
 → 47 strips
 
-203 current records
+203 records
 → 203 strips
 
-Requirements:
+Do NOT:
 
-- no fake padding rows
-- no hard-coded 200
-- no blank filler records
-- no missing valid records
-- modal header displays real count
+- hard-code 200
+- generate fake filler records
+- pad to a page
+- create blank extra strips
+- drop valid records
+
+Modal header must show the real count.
 
 Example:
 
-開發信條 · 203 筆
+開發信條 · 47 筆
 
-Determine the current authoritative source of recipient data from the existing Letter Editor state.
+If there are zero current valid records:
 
-Do not create a second independent duplicate dataset unnecessarily.
+show an empty-state message and do not fabricate strips.
 
 ---
 
-# B2. 開發信條 MUST LOOK LIKE A4 PREVIEW
+# B3. A4 WYSIWYG IS THE SOURCE OF TRUTH
 
-The user wants screen preview and printed A4 to match as closely as practical.
+The user requires the on-screen A4 preview to match print/PDF as closely as practical.
 
-Do NOT implement:
+Do NOT maintain:
 
-screen list renderer
+screen-list renderer
 +
-separate print renderer
+separate print layout
 +
-separate PDF renderer
+separate PDF layout
 
-Use ONE canonical A4 renderer.
+Use ONE canonical Letter Strip A4 renderer/layout model.
 
 Concept:
 
-Recipient data
+current recipient data
 → LetterStrip layout model
 → shared A4 page renderer
 → screen preview
 → print
 → PDF
 
-Create/reuse a single renderer/component for the actual A4 page content.
+The same renderer/layout rules must determine:
 
-For example conceptually:
-
-LetterStripA4Page
-
-The exact file/component name may differ.
-
-Shared renderer must control:
-
-- A4 dimensions
-- strip dimensions
-- font family
-- font size
-- line-height
-- letter spacing
-- alignment
+- page size
+- strip size
+- typography
+- line wrapping
+- padding
 - borders
 - spacing
-- padding
-- recipient presentation
+- recipient display
 - page breaks
+
+The browser A4 preview is the visual source of truth.
 
 ---
 
-# B3. PHYSICAL A4 DIMENSIONS
+# B4. PHYSICAL A4 DIMENSIONS
 
-Use physical print dimensions where appropriate.
+Use print-safe physical dimensions where appropriate.
 
 A4:
 
 210mm × 297mm
 
-For print CSS use proper @page handling.
+Use proper print CSS / @page handling.
 
-Example concept:
-
-@page {
-  size: A4;
-  margin: 0;
-}
-
-Do not blindly copy this if existing printer margins/business requirements demand a safer explicit print margin.
+Do not blindly force zero margins if the existing print architecture requires safe printer margins.
 
 The key requirement is:
 
-screen A4 renderer and print/PDF renderer must share the SAME content/layout source.
+screen preview
+≈
+print preview
+≈
+PDF
 
-Avoid pixel-only layout that produces materially different output on print.
+No material differences in:
 
----
-
-# B4. AUTO PAGINATION BY ACTUAL STRIP SIZE
-
-Do NOT hard-code "8 strips per page" unless the current real strip height mathematically requires exactly 8.
-
-Calculate or deterministically derive how many strips fit on each A4 page based on the actual strip layout.
-
-Example only:
-
-203 entries
-at 8 strips/page
-→ 26 A4 pages
-→ final page contains 3 strips
-
-But actual strips-per-page must come from the real layout.
-
-No content may be clipped across page boundaries.
-
-No strip may straddle two printed pages.
+- line wrapping
+- strip placement
+- clipping
+- font sizing
+- page break locations
 
 ---
 
-# B5. 開發信條 MODAL LAYOUT
+# B5. PAGINATION BY REAL STRIP SIZE
 
-Recommended structure:
+Do NOT hard-code a fixed strips-per-page count unless the actual layout mathematically results in that count.
+
+Derive pagination from the real strip height/layout.
+
+Requirements:
+
+- no strip split across two pages
+- no clipped strip
+- no phantom blank strip
+- final page contains only remaining real records
+
+If a page fits 8 strips and source has 19:
+
+page 1 = 8
+page 2 = 8
+page 3 = 3
+
+But "8" is only an example.
+
+---
+
+# B6. 開發信條 MODAL LAYOUT
+
+Target structure:
 
 ┌─────────────────────────────────────────────────────────┐
 │ 開發信條 · N 筆                    [列印] [匯出 PDF]   │
@@ -351,28 +469,25 @@ Recommended structure:
 
 Requirements:
 
-- header fixed
-- A4 preview section scrolls
-- bottom formatting toolbar fixed
-- toolbar does not scroll away
-- preview shows actual A4 pages, not a generic data table/list
+- header stays visible
+- middle A4 preview area scrolls
+- bottom formatting toolbar stays fixed
+- preview shows actual A4 pages, not a generic list/table
 
 ---
 
-# B6. 開發信條 FONT TOOLBAR — FIXED AT BOTTOM
+# B7. 開發信條 TOOLBAR — FIXED AT BOTTOM
 
-Formatting toolbar stays at the bottom.
+Formatting toolbar applies to the current Letter Strip batch by default.
 
-It should control the whole current Letter Strip batch by default.
-
-Required/expected controls:
+Controls:
 
 - font family
 - font size
 - bold
 - italic
 - underline
-- text color where useful
+- text color where applicable
 - alignment
 - line height
 - letter spacing
@@ -380,13 +495,13 @@ Required/expected controls:
 
 Keep it compact.
 
-Do not make 203 individually styled strip documents unless there is a pre-existing requirement.
+Do not create N independently styled documents unless existing business logic already requires that.
 
 ---
 
-# B7. 開發信條 姓氏 / 貴住戶
+# B8. 開發信條 姓氏 / 貴住戶
 
-Inside the 開發信條 modal:
+Inside 開發信條 modal:
 
 收件人顯示
 
@@ -395,15 +510,17 @@ Inside the 開發信條 modal:
 
 Exactly one active.
 
-This is TEMPORARY session-only state for 開發信條.
+This state is:
 
-It is independent from Envelope Info's persistent/current design setting.
+- specific to 開發信條
+- session-memory only
+- independent from 信封資訊 recipient-display setting
 
-Do not couple them.
+Do not couple the two.
 
 ---
 
-# B8. 開發信條 — PRINT + PDF
+# B9. PRINT + PDF
 
 Top actions:
 
@@ -414,27 +531,19 @@ No JPG.
 
 Do NOT generate PDF on modal open.
 
-Only generate when user clicks PDF.
+Generate only after explicit user action.
 
-Print/PDF must use the same A4 renderer/layout used by the on-screen preview.
+Print/PDF must use the same A4 layout rules as the screen preview.
 
-Acceptance standard:
+Do not reintroduce the obsolete V4 requirement of "always generate exactly 200".
 
-what appears on screen
-≈
-what is printed/exported
-
-Minor browser/printer anti-aliasing differences are acceptable.
-
-Layout shifts, different line wrapping, different strip placement, or missing rows are NOT acceptable.
+Acceptance uses the actual current data count.
 
 ---
 
-# B9. 開發信條 — SESSION MEMORY ONLY
+# B10. SESSION MEMORY ONLY
 
-This product behavior remains mandatory.
-
-開發信條 temporary working data must be MEMORY ONLY.
+開發信條 is temporary working-session data.
 
 Do NOT write it to:
 
@@ -442,178 +551,173 @@ Do NOT write it to:
 - sessionStorage
 - IndexedDB
 - Supabase
-- database
+- DB
 - VPS filesystem
 - .ocrletter
 
 Lifecycle:
 
 open /letter
-→ build temporary Letter Strip session as needed
+→ use current working session
+
+open 開發信條
+→ build temporary view/session state
 
 close modal
 → reopen
-→ current Letter Strip session remains
+→ temporary session remains
 
-switch to another Letter tool
+switch tools
 → return
 → session remains
 
-NO REFRESH
-→ session remains
-
 F5 / Ctrl+R
-→ Letter Strip temporary session is cleared
+→ temporary 開發信條 session clears
 
 close tab/browser
-→ session cleared
+→ clears
 
-This is intentional.
+No cleanup API call is required.
 
-Do not add delete/cleanup API calls.
-Browser memory disappearing naturally is the cleanup.
-
-Normal Letter Editor IndexedDB autosave remains separate and must continue to survive F5.
+Normal Letter Editor IndexedDB persistence remains separate and must continue to survive F5.
 
 ---
 
-# B10. PERFORMANCE — DO NOT STORE 200 HEAVY PREVIEWS
+# B11. PERFORMANCE
 
-For large batches, store lightweight data models only.
+Store lightweight data models.
 
-Avoid keeping:
+Avoid:
 
-- Base64 screenshots for every strip
-- 200 canvas snapshots
-- generated PDF binary before requested
-- permanent Blob URLs
+- Base64 screenshots per strip
+- canvas snapshots per strip
+- pre-generated PDF blobs
+- hundreds of permanent Blob URLs
 
-For preview, use efficient rendering.
-
-Because the user now requires A4 page preview, use a sensible strategy such as:
+If many A4 pages exist, use efficient page rendering such as:
 
 - page virtualization
-- windowed A4 page rendering
 - lazy page rendering
+- windowed page rendering
 
-Do not render hundreds of expensive offscreen pages simultaneously if it causes performance issues.
-
-Prefer existing dependencies; do not add a new virtualization package unless absolutely necessary.
-
----
-
-# C. REMOVE DUPLICATE 開發信條 FROM 信封資訊
-
-Because 開發信條 is now its own independent main function, remove all duplicate Letter Strip controls from 信封資訊.
-
-信封資訊 must NOT contain:
-
-- 開發信條
-- 開發信條字體
-- 開發信條列印
-- 開發信條 PDF
-- 開發信條 settings
-
-信封資訊 remains only for true envelope/postal settings such as:
-
-- 寄件人姓名
-- 寄件地址
-- 郵遞區號
-- 印刷品 ON/OFF
-- envelope recipient display 姓氏 / 貴住戶
-- other actual envelope-only settings
-
-Do not remove legitimate envelope functionality.
+Prefer existing dependencies.
+Do not add a new virtualization library unless unavoidable.
 
 ---
 
-# D. REMOVE BG — OCR CURRENT SERVER FLOW FAILS
+# C1. REMOVE BG — USE DM AS PROVEN REFERENCE
 
-Current report:
-
-OCR RemoveBG server/integration fails.
+Current OCR RemoveBG remains unverified because the previous test asset was invalid.
 
 DM currently has a working RemoveBG flow.
 
-Use DM as the reference implementation.
-
-Reference project:
+Reference:
 
 F:\00-Ticenpi-SaaS\TicenpiDM
 
----
-
-# D1. INSPECT DM WORKING REMOVEBG END TO END
-
-Locate the actual currently working DM RemoveBG implementation.
-
-Trace:
+Trace the REAL working DM code path:
 
 UI action
 → frontend function/composable
 → request URL
-→ method
+→ HTTP method
 → FormData shape
 → image field name
-→ MIME handling
-→ auth/header
+→ MIME
+→ auth/header behavior
 → timeout
-→ server response
-→ blob/base64 conversion
-→ transparent result
-→ UI display
+→ response schema
+→ blob/base64 handling
+→ transparent image rendering
 
 Do not infer from comments.
-Trace the real code path.
 
 ---
 
-# D2. COMPARE DM VS OCR
+# C2. COMPARE DM VS OCR
 
-Inspect current OCR RemoveBG flow and produce a concise internal comparison:
+Before changing code, map:
 
-DM working:
+DM working flow:
 - endpoint
 - request
 - payload
 - response
-- rendering
+- display
 
-OCR failing:
+OCR current flow:
 - endpoint
 - request
 - payload
 - response
-- rendering
+- display
 
-Find the actual mismatch.
+Identify the exact mismatch.
 
 ---
 
-# D3. REUSE PROVEN FLOW, DO NOT INVENT ANOTHER SERVICE
+# C3. FRONTEND-ONLY FIX PREFERRED
 
-Preferred fix:
+If OCR can use the already-proven DM service/contract:
 
-make OCR frontend integration follow the already-proven DM approach where compatible.
+reuse the proven frontend integration pattern.
 
 Do NOT:
 
-- create a new RemoveBG server
+- build a new RemoveBG server
 - create a new backend endpoint
 - add a new paid service
-- add a new secret
+- add a new API secret
 - add ML dependencies
-- redesign backend architecture
-
-If DM and OCR already share a compatible existing service, use the correct frontend integration.
+- redesign backend
 
 ---
 
-# D4. REMOVEBG HARD STOP
+# C4. REAL PORTRAIT INPUT REQUIRED
 
-If OCR cannot use the proven DM flow without changing backend/service contract:
+Do not reuse the invalid 30-byte photo.png fixture.
 
-HARD STOP.
+Use a real portrait image available in current test assets or explicitly provided for browser testing.
+
+If no valid real portrait is available:
+
+do NOT fake success.
+
+Report:
+
+REMOVE_BG_INPUT_REQUIRED
+
+with the exact required input.
+
+Continue other V5 work.
+
+Final overall status may be BLOCKED only on this acceptance item if everything else passes.
+
+---
+
+# C5. REMOVE BG BROWSER ACCEPTANCE
+
+With a real portrait:
+
+1. show original image with background
+2. click AI 去背
+3. request completes
+4. background is visibly transparent
+5. result appears on A4
+6. direct select works
+7. move works
+8. resize works
+9. rotate works
+
+200 response alone is NOT PASS.
+
+---
+
+# C6. REMOVE BG HARD STOP
+
+If success requires changing backend/service contract:
+
+HARD STOP on this workstream.
 
 Report:
 
@@ -627,111 +731,93 @@ Do not modify backend.
 
 ---
 
-# D5. REMOVEBG BROWSER ACCEPTANCE
+# D1. 新增物件 — DM-STYLE PROPERTY OBJECT
 
-Use a real portrait image.
+The user does NOT want only a generic "add image/text" flow.
 
-Acceptance:
-
-original image with background
-→ click AI 去背
-→ request succeeds
-→ resulting background is visibly transparent
-→ transparent portrait appears on A4
-→ portrait remains selectable
-→ move
-→ resize
-→ rotate
-
-200 response alone is NOT PASS.
-
----
-
-# E. 新增物件 — DM-STYLE PROPERTY OBJECT INTEGRATION
-
-The current generic Add Object model is incomplete.
-
-The user specifically wants DM-style property-object creation.
+新增物件 must support a DM-style property object workflow.
 
 Reference:
 
 F:\00-Ticenpi-SaaS\TicenpiDM
 
-Study the CURRENT DM workflow for:
+Study the current DM flow:
 
 property URL
 → extract property
 → normalize data
-→ choose a property frame/template
-→ create property card/object
-→ place into design canvas
+→ select property frame/template
+→ create property object
+→ insert into canvas
 
 Do not invent a second property extractor if DM already has one.
 
 ---
 
-# E1. FIRST MAP THE REAL DM FLOW
+# D2. MAP THE REAL DM PROPERTY FLOW FIRST
 
-Find the actual DM code handling:
+Locate the actual DM code handling:
 
 - URL input
-- property extraction request/function
-- supported source/site behavior
-- normalized property data
-- property images
-- property title/name
+- extraction request/function
+- supported sites
+- normalized property fields
+- images
+- title
 - price
 - area/ping
 - layout/rooms
 - address/district
-- other fields DM actually supports
-- property-card templates/frames
+- any other real supported fields
+- property frames/templates
 - property object creation
-- design-canvas insertion
+- canvas insertion
 
-Use actual DM implementation as source of truth.
+Use DM implementation as source of truth.
 
 Do not assume field names.
 
 ---
 
-# E2. REUSE / MINIMAL EXTRACT FROM DM
+# D3. REUSE STRATEGY
 
-Goal:
+Preferred order:
 
-avoid creating divergent property logic between DM and OCR Letter.
-
-Prefer one of:
-
-1. reuse existing shared function/module if already sharable
-2. extract a small neutral shared frontend helper if safe
-3. minimally port the proven DM frontend logic if repository architecture prevents direct sharing
+1. reuse existing shared helper/module if already shareable
+2. extract a very small neutral frontend helper only if safe
+3. minimally port proven DM frontend logic into OCR when cross-repo sharing is impractical
 
 Do NOT:
 
-- rewrite the whole DM project
 - modify DM behavior
-- redesign scraper backend
-- create a new scraper service
-- duplicate extraction logic unnecessarily
+- rewrite DM
+- create a new scraper backend
+- duplicate scraper logic unnecessarily
+- introduce a second normalization contract
 
-If sharing requires a larger cross-repo architecture change:
+If safe reuse requires a broad cross-repo architecture change:
 
-HARD STOP and report minimum options.
+HARD STOP and report options.
 
 ---
 
-# E3. ADD OBJECT MODAL — UPDATED
+# D4. 新增物件 MODAL
 
-Left Icon Rail keeps:
+Keep the independent main icon:
 
 新增物件
 
-Hover:
+Hover tooltip:
 
 新增物件
 
 Click opens a centered modal.
+
+Page target:
+
+新增到：
+● 正面
+○ 反面
 
 Main options:
 
@@ -741,76 +827,52 @@ Main options:
 - LOGO
 - LINE QR
 - 大頭照
-- 裝飾圖片 / existing supported decorative type
-
-Page target:
-
-新增到：
-
-● 正面
-○ 反面
+- 裝飾圖片 / currently-supported decorative object
 
 ---
 
-# E4. PROPERTY OBJECT FLOW
+# D5. PROPERTY OBJECT FLOW
 
-When user selects:
-
-案件物件
-
-Show a focused property workflow.
-
-Required concept:
+When 案件物件 is selected:
 
 案件網址
 [ https://... ]
 
 [擷取案件]
 
-After successful extraction show a compact preview of actual extracted data.
+After successful extraction:
 
-Display fields based on real DM normalized data.
+show an actual extracted-data preview.
 
-Likely examples may include:
-
-- main image
-- title
-- price
-- area
-- room/layout
-- location
-
-But use the actual DM-supported fields.
+Display only fields actually produced by the DM normalized contract.
 
 Then:
 
 選擇案件框架
 
-Show existing/suitable property frames.
-
-User picks a frame.
+Show available suitable property frames/templates.
 
 Then:
 
-[加入正面]
+加入正面
 or
-[加入反面]
+加入反面
 
-depending on active target.
+based on selected target.
+
+Do not fabricate success if the URL extraction fails.
 
 ---
 
-# E5. PROPERTY FRAME / TEMPLATE
+# D6. PROPERTY FRAME
 
-Do not add raw property data directly onto A4 as loose text.
+Do not add raw extracted text loosely to A4.
 
-Wrap property data into a designed Property Object frame.
+Create one Property Object using a property frame/template.
 
-Reference DM's existing property/card design behavior.
+Frame controls:
 
-Property frame should control:
-
-- image region
+- main image region
 - title
 - price
 - area
@@ -818,133 +880,124 @@ Property frame should control:
 - secondary metadata
 - typography hierarchy
 - spacing
-- border/background
+- background/border
 - crop behavior
 
-Do not copy a frame that is inappropriate for print if DM has multiple variants; choose or adapt the most relevant print-safe frame(s).
+Reference DM's proven card/frame design.
 
-If multiple proven frames already exist, expose a small selection.
+Use print-safe frame behavior.
+
+If multiple suitable existing frames are available, expose a small selection.
 
 ---
 
-# E6. PROPERTY OBJECT ON A4
+# D7. PROPERTY OBJECT USES EXISTING OCR selectedObject
 
-After insertion, property object becomes part of the shared selectedObject system.
+Do NOT create a new canvas engine.
 
-Required interactions:
+After insertion, property object participates in the existing shared object model.
+
+Required:
 
 - direct click
 - selected outline
-- drag/move
+- move
 - resize
 - bring forward
 - send backward
 - delete
 - reset transform
-- optionally change frame/template if safely supported
+- front page
+- back page
 
-It must work on both:
+Optional:
 
-- front
-- back
-
-Do not create a separate canvas engine for property cards.
-
-Use the existing OCR Letter object model.
+- change frame/template after insertion, only if safe
 
 ---
 
-# E7. PROPERTY OBJECT WYSIWYG
+# D8. PROPERTY OBJECT WYSIWYG
 
-Property object screen rendering and PDF/print rendering must use the same object renderer where possible.
+Screen A4 rendering and normal Letter PDF/print must use the same Property Object renderer/layout where practical.
 
 Do not create:
 
-editor property card
+editor card
 +
-different PDF property card
+different PDF card
 
-The A4 preview is the source of truth.
-
----
-
-# F. LOGO / QR / TRANSFORM — PRESERVE PRIOR V4 REQUIREMENTS
-
-Do not regress these.
-
-LOGO:
-
-- direct select
-- resize
-- move
-- z-order
-- reset
-
-LINE QR:
-
-- direct select
-- resize
-- move
-- z-order
-- reset
-
-Other image/sticker:
-
-- resize
-- move
-- rotate
-- flip
-- z-order
-- reset
-
-Do not reintroduce the rotation-disappears bug.
-
-If V4 acceptance for these is still incomplete, validate them during this task.
+A4 preview remains source of truth.
 
 ---
 
-# G. NORMAL LETTER PERSISTENCE — PRESERVE
+# D9. PROPERTY TEST INPUT
 
-Normal Letter Editor state remains persistent with IndexedDB.
+Use a real currently supported property URL if available from DM dev/test context.
 
-F5 must restore normal Letter design.
+Do not fabricate extraction results.
 
-This includes current normal editor objects such as:
+If no usable URL is available:
 
-- text
-- rich text
-- images
-- property objects if added
-- transforms
-- template/theme
-- envelope info
-- normal recipient settings
+report:
 
-IMPORTANT:
+PROPERTY_TEST_INPUT_REQUIRED
 
-開發信條 temporary session must NOT be included.
+with the exact type of supported URL needed.
+
+Continue other workstreams.
 
 ---
 
-# H. .OCRLETTER SAVE / IMPORT — PRESERVE
+# E. ALREADY-PASSED V4 MECHANICS — REGRESSION SMOKE ONLY
 
-Normal Letter design:
+Do NOT rebuild these:
+
+- LOGO resize
+- LINE QR resize
+- sticker rotate
+- sticker resize
+- sticker drag
+- sticker flip
+- sticker z-order
+- reset transform
+- normal Letter F5 restore
+- 開發信條 memory-only lifecycle
+
+After V5 changes, perform a short regression smoke only.
+
+If a regression is discovered, fix the minimum regression.
+
+---
+
+# F. NORMAL LETTER PERSISTENCE
+
+Normal Letter Editor remains persistent using IndexedDB.
+
+Normal Letter data should survive F5.
+
+If Property Objects are added, they must serialize into normal Letter persistence.
+
+開發信條 temporary session must NOT serialize into IndexedDB.
+
+---
+
+# G. .OCRLETTER SAVE / IMPORT
+
+Normal Letter design continues to support:
 
 儲存 / 匯入
 
-uses:
+using:
 
 .ocrletter
 
-If property objects are added, they must serialize safely in .ocrletter.
+Property Objects must serialize/restore safely.
 
-Do NOT include temporary 開發信條 session state.
+開發信條 session state must remain excluded.
 
 ---
 
-# I. JPG REMAINS REMOVED
-
-No JPG export.
+# H. JPG REMAINS REMOVED
 
 Normal Letter:
 
@@ -956,11 +1009,11 @@ Normal Letter:
 - own PDF
 - own print
 
+No JPG export.
+
 ---
 
-# J. ICON RAIL — EXPECTED MAIN ITEMS
-
-Expected compact main rail:
+# I. ICON RAIL — EXPECTED ORDER
 
 1. 返回 OCR
 2. 收件人
@@ -974,13 +1027,13 @@ Expected compact main rail:
 10. 列印 / 匯出
 11. 全螢幕
 
-Every item must have real visible hover tooltip.
+Every item must have a real visible hover tooltip.
 
-Do not add duplicate property/add icons unless truly required.
+No separate portrait icon.
 
 ---
 
-# K. UI / VIEWPORT — PRESERVE
+# J. VIEWPORT — PRESERVE
 
 No permanent Top Bar.
 
@@ -989,25 +1042,26 @@ Main editor:
 - 100dvh
 - no body vertical scrollbar
 - no icon rail scrollbar
-- A4 maximized
-- temporary panels/modals may scroll internally
+- A4 maximized within viewport
+- temporary modals/panels may scroll internally
 
-Do not regress current editor layout while implementing V5.
+Do not regress current editor layout.
 
 ---
 
-# L. SCOPE BOUNDARY
+# SCOPE BOUNDARY
 
 Allowed:
 
 - OCR frontend Letter editor
-- letter-specific components/styles
-- in-memory session store for 開發信條
+- Letter-specific components/styles
+- real tooltip implementation
+- Letter Strip in-memory session state
 - shared A4 Letter Strip renderer
 - print/PDF frontend flow
-- property-object frontend integration
-- reference/read DM implementation
-- minimal shared frontend helper if safe and clearly justified
+- Property Object frontend integration
+- reading/reference of DM implementation
+- minimal shared frontend helper only if safe and clearly justified
 
 Not allowed:
 
@@ -1017,37 +1071,29 @@ Not allowed:
 - CI/deploy change
 - Staging/Production change
 - auth/entitlement redesign
-- new service
+- new external service
 - new secret
-- new scraping backend
+- new scraper backend
 - new RemoveBG backend
-- broad DM rewrite
-
-If a backend/service change is required:
-
-HARD STOP.
+- DM source modification without prior HARD STOP
 
 ---
 
-# M. ANTI-OVERREFACTOR
-
-Do not turn this task into a frontend rewrite.
+# ANTI-OVERREFACTOR
 
 Target:
 
 6–14 OCR frontend files.
 
-If more than 16 tracked files need modifications:
+If more than 16 tracked files need modification:
 
-HARD STOP before changing the 17th file.
+HARD STOP before changing file 17.
 
 If modifying DM source becomes necessary:
 
 HARD STOP first.
 
-This task should primarily READ DM and implement/reuse proven patterns in OCR.
-
-Do not silently change DM.
+Do not silently alter DM.
 
 ---
 
@@ -1057,269 +1103,254 @@ Before editing:
 
 1. capture OCR git state
 2. inspect current V4 working tree
-3. browser-check current hover failure
+3. reproduce current tooltip failure
 4. inspect current 開發信條 implementation
-5. inspect current Envelope Info duplicates
-6. inspect current OCR RemoveBG failure
-7. trace working DM RemoveBG
-8. trace DM property URL extraction
-9. trace DM property normalization
-10. trace DM property frame/card rendering
-11. inspect current OCR selectedObject/object persistence
+5. identify exact authoritative source-data array/list
+6. inspect duplicate controls in 信封資訊
+7. inspect current OCR RemoveBG path
+8. trace working DM RemoveBG path
+9. trace DM property URL extraction
+10. trace DM normalized property data
+11. trace DM property frames/cards
+12. inspect current OCR selectedObject + persistence
 
-Do not edit until these are mapped.
+Do not edit until this map is understood.
 
 ---
 
 # PHASE 1 — TOOLTIP + DUPLICATE CLEANUP
 
-Fix real hover tooltip.
+Implement real hover tooltips.
 
-Remove 開發信條 duplication from 信封資訊.
+Remove duplicate 開發信條 controls from 信封資訊.
 
 Browser verify both.
 
 ---
 
-# PHASE 2 — 開發信條 DATA + A4 RENDERER
+# PHASE 2 — LETTER STRIP A4 WYSIWYG
 
-Change batch count to exact current data count.
+Implement:
 
-Build/reuse a canonical A4 Letter Strip renderer.
+actual source count
+→ exact strip count
+→ A4 pages
 
-Render actual A4 pages in modal.
+Create/reuse one canonical A4 renderer/layout model.
 
-Implement deterministic pagination from actual strip size.
-
----
-
-# PHASE 3 — 開發信條 PRINT/PDF
-
-Wire screen A4 renderer to print/PDF.
-
-Ensure layout parity.
-
-Keep session-memory-only data.
-
-Test small batch first, then large batch.
+No fixed 200 behavior.
 
 ---
 
-# PHASE 4 — DM REMOVEBG COMPARISON / FIX
+# PHASE 3 — LETTER STRIP PRINT / PDF
+
+Wire the same A4 layout to:
+
+- on-screen preview
+- print
+- PDF
+
+Validate visual parity.
+
+Keep temporary state memory-only.
+
+---
+
+# PHASE 4 — REMOVE BG
 
 Trace DM.
-
 Compare OCR.
+Apply frontend-only fix if compatible.
+Use a real portrait for final acceptance.
 
-Apply frontend-only minimal fix if possible.
-
-Real browser portrait acceptance required.
+If no real portrait exists:
+REMOVE_BG_INPUT_REQUIRED
 
 ---
 
 # PHASE 5 — DM PROPERTY OBJECT INTEGRATION
 
-Trace DM property extraction.
+Trace DM property flow.
 
-Implement Add Object → Property Object flow.
+Implement:
 
 URL
 → extract
-→ preview data
-→ choose frame
+→ preview
+→ frame
 → add front/back
 → selectedObject
 
 ---
 
-# PHASE 6 — PROPERTY OBJECT CANVAS BEHAVIOR
+# PHASE 6 — PROPERTY OBJECT PERSISTENCE
 
 Validate:
 
 - front insertion
 - back insertion
-- drag
+- move
 - resize
 - z-order
 - delete
 - reset
-- persistence
-- .ocrletter serialization
+- F5 restore
+- .ocrletter save/import
 
 ---
 
-# PHASE 7 — REGRESSION
+# PHASE 7 — REGRESSION SMOKE
 
-Validate previous OCR Letter functionality.
+Only regression-smoke already-passed V4 mechanics.
+
+Do not rerun a broad V4 implementation task.
 
 ---
 
 # REQUIRED BROWSER VALIDATION
 
-Use canonical host:
+Canonical host:
 
 http://localhost:3013/
 
-Do not switch test documentation to 127.0.0.1.
+Do not change canonical documentation to 127.0.0.1.
 
-## Hover
+## Tooltips
 
-For EVERY icon:
+Hover every main icon.
 
-hover
-→ visible tooltip text
-
-No clipping.
+Visible tooltip required.
 
 ## Envelope Info
 
-Confirm no 開發信條 duplicate controls remain.
+No 開發信條 duplicate controls.
 
-Confirm legitimate envelope controls remain.
+True envelope controls remain.
 
-## 開發信條 counts
-
-Test at least:
-
-- a small actual dataset
-- a larger actual dataset if available
-
-Verify count exactly equals source data.
-
-## 開發信條 A4 preview
+## Letter Strip count
 
 Verify:
 
-- real A4 page dimensions/ratio
-- strips fit page
-- no split strip
-- page transitions correct
+source count N
+=
+generated count N
+
+No fabricated records.
+
+## Letter Strip A4
+
+Verify:
+
+- actual A4 ratio/dimensions
+- correct page grouping
+- no strip splits
+- no clipping
+- final page contains only real remaining records
 - bottom toolbar fixed
 
-## Print
-
-Use print preview.
-
-Compare to on-screen A4.
-
-No material wrapping/layout drift.
-
-## PDF
-
-Generate PDF.
-
-Open output.
+## Print preview
 
 Compare against on-screen A4.
 
-Verify expected entry count represented.
+No material layout drift.
 
-## Session lifecycle
+## PDF
+
+Generate PDF from the current real dataset.
+
+Open it.
+
+Verify:
+
+- expected records represented
+- page layout matches preview closely
+- no blank/fake records
+- no corrupt output
+
+Do not require exactly 200 unless current real dataset actually has 200 records.
+
+## Letter Strip lifecycle
 
 Without refresh:
-
-- close modal
-- reopen
-- data remains
-
-Switch tools:
-- remains
+- close/reopen modal → remains
+- switch tools → remains
 
 F5:
-- 開發信條 temporary state clears
+- temporary 開發信條 state clears
 
 Normal Letter state:
 - survives F5
 
 ## RemoveBG
 
-Real portrait:
+Use real portrait.
 
-- original background
+If available:
+
+- original background visible
 - AI remove
-- actual transparency
-- place on A4
+- actual transparent result
+- A4 placement
 - move/resize/rotate
+
+If no real portrait:
+- report REMOVE_BG_INPUT_REQUIRED
+- do not fake PASS
 
 ## Property Object
 
-Use a real supported property URL if one is available from the current DM dev/test data.
-
-Flow:
+Use a real supported property URL if available.
 
 - paste URL
-- extract
-- show actual property data
-- select frame
+- extract actual property
+- show normalized preview
+- choose frame
 - add to front
-- select
-- drag/resize
-- add another to back or move flow to back
-- validate back behavior
+- select/move/resize
+- add or test on back
+- F5 restore
+- save/import .ocrletter
 
-Do not fabricate a successful extraction.
-
-If a real supported URL/input is required and unavailable:
-
-PROPERTY_TEST_INPUT_REQUIRED
-
-Report exact input needed.
-
-## Persistence
-
-Normal property object:
-- F5
-- remains
-
-.ocrletter:
-- save
-- import
-- property object restored
-
-Temporary 開發信條:
-- excluded
+If no usable URL:
+- report PROPERTY_TEST_INPUT_REQUIRED
+- do not fabricate success
 
 ---
 
-# TEST / BUILD
+# VALIDATION
 
 Run:
 
 git diff --check
 
-Existing frontend tests:
+Expected frontend test baseline:
 
-current expected baseline 36/36 PASS or better.
+36/36 PASS or better.
 
-Production build:
+Run production frontend build.
 
 PASS required.
 
-Add focused tests where practical for:
+Capture relevant browser console/network errors for V5 flows.
 
-- exact Letter Strip count
-- session-only store not serialized
-- property object serialization
-- tooltip rendering state if existing test setup supports it
-
-Do not add brittle screenshot tests unless existing project already uses them.
+Do not fix unrelated pre-existing warnings.
 
 ---
 
 # HARD STOP CONDITIONS
 
-Stop if:
+Stop before broadening scope if:
 
-1. OCR RemoveBG requires backend contract change
-2. Property URL extraction requires a new scraper/backend
-3. DM property extraction cannot be reused without modifying DM architecture
-4. DM source must be modified
+1. RemoveBG requires backend contract change
+2. Property extraction requires new scraper/backend
+3. DM source must be modified
+4. DM property flow cannot be reused without broad architecture changes
 5. DB change required
 6. Docker/deploy change required
 7. new secret required
-8. new external paid service required
-9. more than 16 tracked files needed
-10. existing V4 working tree cannot be preserved
+8. new paid/external service required
+9. more than 16 tracked files required
+10. current V4 working tree cannot be preserved
 
 Output:
 
@@ -1331,38 +1362,25 @@ MINIMUM OPTIONS
 
 ---
 
-# FINAL PASS RULE
+# FINAL STATUS RULES
 
-PASS requires:
+PASS only if all V5 requirements are verified.
 
-- all main icon hover tooltips visibly work
-- duplicate 開發信條 removed from 信封資訊
-- 開發信條 count = actual data count
-- 開發信條 shown as A4 page preview
-- screen/print/PDF share equivalent layout
-- print preview matches screen closely
-- PDF matches screen closely
-- 開發信條 remains memory-only
-- F5 clears 開發信條
-- normal Letter state survives F5
-- RemoveBG visually works with real portrait
-- Add Object supports DM-style property URL extraction
-- property frame selection works
-- property object can be added to front/back
-- property object is selectable/movable/resizable
-- property object persists in normal draft
-- property object serializes in .ocrletter
-- no JPG export
-- no backend/DB/Docker/deploy changes
-- git diff --check PASS
-- tests PASS
-- build PASS
+If everything implementable passes but a real portrait is unavailable:
 
-If RemoveBG or property extraction is blocked by an external/backend contract:
+BLOCKED — REMOVE_BG_INPUT_REQUIRED
 
-BLOCKED
+If everything implementable passes but a real supported property URL is unavailable:
 
-Do not fake PASS.
+BLOCKED — PROPERTY_TEST_INPUT_REQUIRED
+
+If both inputs are unavailable:
+
+BLOCKED — TEST_INPUT_REQUIRED
+
+Do not call these FAIL unless the feature is actually demonstrated broken.
+
+FAIL when implementation is demonstrably broken after available test input is used.
 
 ---
 
@@ -1376,10 +1394,18 @@ OCR LETTER EDITOR V5 FINAL
 Path:
 Branch:
 HEAD:
-Pre-existing tracked dirty:
-Pre-existing untracked:
+Tracked dirty before:
+Tracked dirty after:
+Files changed by V5:
 
-2. HOVER TOOLTIPS
+2. V4 BASELINE PRESERVED
+LOGO resize regression:
+QR resize regression:
+Sticker transform regression:
+Normal Letter F5 regression:
+開發信條 memory-only regression:
+
+3. HOVER TOOLTIPS
 Return OCR:
 Recipients:
 Add object:
@@ -1393,35 +1419,37 @@ Print/export:
 Fullscreen:
 Clipping/z-index:
 
-3. ENVELOPE INFO
+4. ENVELOPE INFO
 Letter-strip duplicate removed:
 Sender fields:
 Printed-material toggle:
 Envelope surname/貴住戶:
 
-4. LETTER STRIP DATA
-Source data:
+5. LETTER STRIP DATA
+Authoritative source:
 Source count:
 Generated count:
-Count exact match:
+Exact match:
 
-5. LETTER STRIP A4
+6. LETTER STRIP A4
 Shared renderer:
 A4 dimensions:
-Strips per page:
-Total A4 pages:
+Actual strips/page:
+Total pages:
 No split strips:
+No fake/blank records:
 Bottom toolbar fixed:
 
-6. LETTER STRIP OUTPUT
+7. LETTER STRIP OUTPUT
 Screen preview:
 Print preview:
 Print parity:
 PDF generated:
+PDF opens:
 PDF parity:
-Expected data count represented:
+Expected source records represented:
 
-7. LETTER STRIP LIFECYCLE
+8. LETTER STRIP LIFECYCLE
 Memory-only:
 Close/reopen preserved:
 Tool switch preserved:
@@ -1432,24 +1460,25 @@ IndexedDB = NO
 Backend/VPS = NO
 Included in .ocrletter = NO
 
-8. REMOVE BG
-DM working flow located:
+9. REMOVE BG
+DM working path:
 OCR mismatch:
-Frontend fix:
-Real portrait used:
-Transparent result:
+Frontend-only fix:
+Real portrait available:
+Transparent visual result:
 A4 move/resize/rotate:
 Status:
 
-9. DM PROPERTY REFERENCE
-DM extraction code path:
-DM normalized fields:
-DM frames/templates:
+10. DM PROPERTY REFERENCE
+DM extraction path:
+Supported URL/source:
+Normalized fields:
+Frames/templates:
 Reuse strategy:
 
-10. ADD PROPERTY OBJECT
-URL input:
-Extraction:
+11. PROPERTY OBJECT
+Real URL available:
+URL extraction:
 Extracted preview:
 Frame selection:
 Add front:
@@ -1461,27 +1490,21 @@ Z-order:
 Delete:
 Reset:
 
-11. PROPERTY PERSISTENCE
-IndexedDB restore:
+12. PROPERTY PERSISTENCE
+IndexedDB:
 F5 restore:
 .ocrletter save:
 .ocrletter import:
-Letter-strip session excluded:
+Letter Strip excluded:
 
-12. REGRESSION
+13. REGRESSION
 OCR home:
 Rich text:
 Images:
-LOGO resize:
-QR resize:
-Sticker transforms:
 Fullscreen:
 Normal PDF:
 Normal print:
 JPG = REMOVED:
-
-13. FILES CHANGED
-- ...
 
 14. VALIDATION
 Console:
