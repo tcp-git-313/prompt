@@ -25,7 +25,7 @@ F:\00-Ticenpi-SaaS
 Platform: F:\00-Ticenpi-SaaS\ticenpi-platform
 Post: F:\00-Ticenpi-SaaS\TicenpiPost
 DM: F:\00-Ticenpi-SaaS\TicenpiDM
-ORC/Letter: F:\00-Ticenpi-SaaS\TicenpiLetter
+OCR/Letter: F:\00-Ticenpi-SaaS\TicenpiLetter
 Launcher: F:\00-Ticenpi-SaaS\Ticenpi-Launcher
 Deploy: F:\00-Ticenpi-SaaS\deploy
 
@@ -42,22 +42,22 @@ DM current successful Staging:
 - unassigned 403
 - deploy-config 0f146ca7a5275c2d45e0f5fc16e9ca511405b876
 
-ORC 是目前唯一 Staging blocker。
-ORC commercial product_code = ocr。
-Letter 是 ORC internal component，不建立獨立 entitlement/Seat。
+OCR 是目前唯一 Staging blocker。
+OCR commercial product_code = ocr。
+Letter 是 OCR internal component，不建立獨立 entitlement/Seat。
 
-已證明 ORC bug：
+已證明 OCR bug：
 product_seat_status 呼叫漏掉 p_product_code='ocr'
 → PostgREST PGRST202/404
 → backend fail closed 503 CENTRAL_SEAT_UNAVAILABLE。
 
 Customer / entitlement / Seat 本身已存在，不要先去重建 fixture。
 
-## Phase 1 — ORC 最小修正
+## Phase 1 — OCR 最小修正
 1. 建立 isolated worktree。
 2. 再確認實際 call site 與 request body。
 3. 最小修正：RPC body 傳入 p_product_code='ocr'。
-4. 不改 Platform schema、ORC RLS、Letter boundary、product code。
+4. 不改 Platform schema、OCR RLS、Letter boundary、product code。
 5. focused tests 至少包含：
    - request body 有 p_product_code=ocr
    - assigned → allow
@@ -67,10 +67,10 @@ Customer / entitlement / Seat 本身已存在，不要先去重建 fixture。
 6. 跑 relevant regression + git diff --check。
 7. 建立最小 commit，跑正常 CI。
 8. 記錄 source SHA、build run、immutable digest。
-9. pin exact digest，只部署 ORC Staging。
+9. pin exact digest，只部署 OCR Staging。
 10. 驗 running digest/source/config/health/auth。
 
-## Phase 2 — ORC Browser E2E
+## Phase 2 — OCR Browser E2E
 使用兩個獨立 browser context。
 
 Assigned:
@@ -80,17 +80,17 @@ Assigned:
 
 Unassigned:
 → login success
-→ ORC commercial deny / 403
+→ OCR commercial deny / 403
 → protected data/API 不載入
 → Letter 不可 bypass
 
 證明兩者同 customer、同 ocr entitlement、同 ordinary class，唯一差異是 Seat。
 
 完成後：
-ORC_STAGING_E2E=PASS
+OCR_STAGING_E2E=PASS
 
 ## Phase 3 — STAGING COMMERCIAL FREEZE
-只有 Platform/Post/DM/ORC/Launcher 全部 PASS 才 Freeze。
+只有 Platform/Post/DM/OCR/Launcher 全部 PASS 才 Freeze。
 
 記錄每個產品：
 APP_SOURCE_COMMIT
@@ -112,7 +112,7 @@ Freeze 後不要混入 UI、新功能、auth cleanup 或 extraction 改動。
 - frozen artifact identities
 - rollback targets
 - migration plan
-- Post/DM/ORC/Launcher cutover順序
+- Post/DM/OCR/Launcher cutover順序
 - Facebook/Studio canary plan
 
 若 preflight 有真正衝突，報 exact blocker。
@@ -123,7 +123,7 @@ Freeze 後不要混入 UI、新功能、auth cleanup 或 extraction 改動。
 1. Production Commercial Core
 2. Post Production
 3. DM Production
-4. ORC/Letter Production
+4. OCR/Letter Production
 5. Launcher Production
 6. Production Canary
 7. GO LIVE
@@ -139,26 +139,26 @@ source SHA
 → runtime source identity
 
 DM 必須保持 DM_SEAT_POLICY=require。
-ORC 必須保持 product_code=ocr。
+OCR 必須保持 product_code=ocr。
 Launcher 不建立 Staging App。
 
 Production Canary 最後至少：
 - Post Facebook OAuth/callback/account binding/Studio reconnect/real smoke publish
 - DM assigned-user protected API smoke
-- ORC assigned-user OCR + Letter smoke
+- OCR assigned-user OCR + Letter smoke
 - Launcher platform_admin Customer/member/Seat smoke
 
 ## 回報格式
 只維護：
 
-ORC_STAGING_FIX =
-ORC_STAGING_E2E =
+OCR_STAGING_FIX =
+OCR_STAGING_E2E =
 STAGING_COMMERCIAL_FREEZE =
 PRODUCTION_PREFLIGHT =
 PRODUCTION_COMMERCIAL_CORE =
 POST_PRODUCTION =
 DM_PRODUCTION =
-ORC_PRODUCTION =
+OCR_PRODUCTION =
 LAUNCHER_PRODUCTION =
 FACEBOOK_STUDIO_CANARY =
 PRODUCTION_CANARY =
