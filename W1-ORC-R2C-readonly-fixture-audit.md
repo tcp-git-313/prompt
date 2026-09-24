@@ -1,0 +1,5 @@
+# W1-ORC-R2C — ORC Staging Fixture Audit
+
+Read-only only. Use the two existing ordinary Staging regression users already proven for Post, supplied by the operator at runtime. Verify they are ordinary non-admin users without test bypass, belong to the same active test customer, and can serve as the ORC assigned/unassigned pair. Inspect the current ORC product code, effective entitlement, seat limit, current Seat status and user-owned data boundary. Do not create, update or delete users, customers, memberships, entitlements or Seats. Do not assign/release Seats. Do not modify files, deploy, commit or push.
+
+Return RESULT, FIXED_USERS_PROVEN, SAME_TEST_CUSTOMER, ORC_PRODUCT_CODE, ORC_ENTITLEMENT_READY, CURRENT_SEAT_STATE_A, CURRENT_SEAT_STATE_B, READY_FOR_ORC_F1, and exact missing canonical mutations if PARTIAL_PASS.
