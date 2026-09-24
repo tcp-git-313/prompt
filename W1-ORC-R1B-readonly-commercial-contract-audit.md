@@ -1,0 +1,5 @@
+# W1-ORC-R1B — ORC Commercial Contract Audit
+
+READ-ONLY ONLY. Inspect ORC/Letter, Platform and deploy sources. Confirm the canonical internal commercial product code currently used by ORC, whether Central Seat should use that same code, whether Letter is only an internal component, and whether ORC may retain its existing user-owned auth.uid()/user_id RLS model for first commercial launch. Do not rename products, modify files, apply migrations, mutate Staging/Production, build, commit, push or deploy.
+
+Return: CANONICAL_COMMERCIAL_PRODUCT_CODE, CANONICAL_CENTRAL_SEAT_PRODUCT_CODE, LETTER_MODE, LETTER_REQUIRES_SEPARATE_SEAT, ORC_DATA_MODEL_LAUNCH_BLOCKER, exact target access chain, exact files/symbols for later authoritative Seat implementation, READY_FOR_ORC_F1, and exact BLOCKER if any. Safety flags must all remain NO for source modifications, Staging mutation, Production mutation and deploy.
