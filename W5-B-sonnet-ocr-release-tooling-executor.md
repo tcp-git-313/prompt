@@ -62,12 +62,13 @@ OCR work:
 5. Commit.
 6. Run CI.
 7. Capture exact immutable digest.
-8. Deploy OCR Staging only.
-9. Verify runtime identity, health and auth.
-10. Browser E2E with isolated sessions:
+8. Prepare OCR Staging deployment only. Run the supported dry-run/preflight path and produce the exact deploy command required by the repository/HANDOFF.
+9. HARD GUARDRAIL: the executor MUST NOT invoke deploy.ps1 with -Yes (or any equivalent confirmed/mutating deployment flag). Stop and request the human operator to execute the exact Staging deploy command. Preserve state so execution can resume immediately afterward.
+10. After the human confirms the deploy command completed, verify runtime identity, health and auth.
+11. Browser E2E with isolated sessions:
    assigned -> OCR protected API 200 and Letter works
    unassigned -> auth succeeds and commercial access is 403
-11. After PASS, write OCR ACCEPTED Staging evidence.
+12. After PASS, write OCR ACCEPTED Staging evidence.
 
 Post/DM:
 Do not redeploy them.
@@ -90,3 +91,8 @@ EVIDENCE_PATHS =
 COMMAND_EXAMPLES =
 
 Do not perform any Production deployment.
+
+Deployment authority rule:
+- AI/Executor: prepare, dry-run, preflight, CI, digest pinning, evidence, and post-deploy verification.
+- Human operator: executes the actual mutating Staging deploy command that requires deploy.ps1 -Yes (or equivalent confirmation).
+- The AI must never bypass this HANDOFF guardrail.
