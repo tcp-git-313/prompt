@@ -1,4 +1,4 @@
-# W6 — Universal Project Delivery Workflow Template
+# W6 — Universal Ticenpi Project Delivery Workflow（Auto-Discovery 版）
 
 ## ROLE
 PROJECT DELIVERY / RELEASE WORKFLOW OWNER
@@ -7,55 +7,69 @@ PROJECT DELIVERY / RELEASE WORKFLOW OWNER
 GPT-5.6 Sol High / OPUS 5.5
 
 ## 使用方式
-把下面這份提示詞直接交給任何 Ticenpi 專案。
 
-只需要先填：
+使用者通常只會告訴你：
 
-PROJECT_NAME =
-PROJECT_REPO =
-PROJECT_TYPE =
-PRIMARY_RUNTIME =
-HAS_FRONTEND =
-HAS_BACKEND =
-USES_DOCKER =
-USES_SUPABASE =
-USES_R2 =
-USES_CENTRAL_COMMERCIAL_CORE =
-USES_CENTRAL_SEAT =
-USES_CLOUDFLARE =
-STAGING_DOMAIN =
-PRODUCTION_DOMAIN =
+PROJECT_NAME = <產品名稱>
 
-如果某項不適用就填 N/A。
+如果 repo 路徑已知，也可能一起提供：
+
+PROJECT_REPO = <路徑>
+
+除此之外，不要先丟一張表要求使用者填：
+
+- runtime
+- frontend/backend
+- Docker
+- Supabase
+- R2
+- Central Commercial Core
+- Central Seat
+- Cloudflare
+- domain
+- port
+- env
+- CI
+- deploy script
+
+以上能從 workspace / repo / deploy config / runtime / Git / CI 自行查出的資訊，都必須由你自己查。
+
+只有在「真的無法安全判定，而且會阻塞下一步」時，才在對話中向使用者詢問。
 
 ---
 
 # 核心原則
 
-本任務要求的是：
+本任務要求：
 
-**流程一致，不是檔案一致。**
+**Workflow parity, not file parity.**
 
-不得要求不同專案必須：
+也就是：
+所有 Ticenpi 專案的交付流程要一致，
+但每個產品的實作細節可以不同。
 
-- 用相同 repo 結構
-- 用相同 compose
-- 用相同 Dockerfile
-- 用相同 port
-- 用相同 health endpoint
-- 用相同 Supabase schema
-- 用相同 R2 bucket
-- 用相同 Central Seat 模型
-- 用相同 CI job
-- 用相同測試框架
+不要要求不同產品使用：
 
-但所有專案都必須具備等價的 delivery / release lifecycle。
+- 一樣的 repo 結構
+- 一樣的 compose
+- 一樣的 Dockerfile
+- 一樣的 port
+- 一樣的 domain
+- 一樣的 health endpoint
+- 一樣的 Supabase schema
+- 一樣的 R2 bucket
+- 一樣的 Seat 模型
+- 一樣的 CI job
+- 一樣的測試框架
+
+要統一的是「交付生命週期」。
 
 標準流程：
 
 Local Source
-→ Local Runtime / Local Docker
+→ Local Runtime / Docker
 → Clean Candidate
+→ Local Tests
 → CI
 → Immutable Artifact
 → Staging Preflight
@@ -63,7 +77,7 @@ Local Source
 → Runtime Identity
 → Health / Smoke
 → Auth / Data Isolation / Commercial Gate
-→ Real E2E
+→ Real Staging E2E
 → Release Evidence
 → STAGING ACCEPTED
 → Production Preflight
@@ -73,9 +87,54 @@ Local Source
 
 ---
 
-# 一、先盤查，不要先改
+# 一、Ticenpi Standard Stack 預設
 
-先確認目前專案：
+除非實際盤查證明不同，預設認知：
+
+- Workspace：
+  F:\00-Ticenpi-SaaS
+
+- Git 為 source of truth
+
+- Local development 與 release candidate 分離
+
+- 有 Docker / containerized runtime 時：
+  Local Docker 只做執行與驗證，不反向覆蓋 source
+
+- CI 負責建立或驗證 release artifact
+
+- release 使用 immutable artifact identity
+
+- deploy / release / promote 由中央 deploy layer 管理
+
+- Staging 與 Production 完全分離
+
+- release evidence 必須落盤
+
+- Production 不重新 build 已在 Staging ACCEPTED 的 artifact
+
+若專案不符合以上任一點：
+標記為 EXCEPTION，不要硬套。
+
+---
+
+# 二、Auto-Discovery
+
+先自行定位專案。
+
+若使用者只提供 PROJECT_NAME：
+從以下位置搜尋最合理的 repo / worktree / deploy definition：
+
+F:\00-Ticenpi-SaaS
+F:\00-Ticenpi-SaaS\.worktrees
+F:\00-Ticenpi-SaaS\deploy
+
+不要猜。
+
+若找到多個可能 repo 且無法判定哪個才是 authoritative source，
+這時才問使用者。
+
+盤查：
 
 1. repo / branch / HEAD
 2. dirty tracked / untracked files
@@ -84,111 +143,124 @@ Local Source
 5. Docker / compose
 6. CI
 7. artifact / image
-8. deploy scripts
-9. Staging
-10. Production
-11. health / ready / smoke
-12. rollback
-13. runtime identity
-14. auth
-15. RLS / tenant / data boundary
-16. commercial entitlement
-17. Central Seat 是否適用
-18. Supabase
-19. R2 / object storage
-20. Cloudflare / nginx / reverse proxy
-21. release evidence
-22. known drift / technical debt
+8. GHCR / registry（如適用）
+9. deploy scripts
+10. services manifest
+11. Staging
+12. Production
+13. health / ready / smoke
+14. rollback
+15. runtime identity
+16. auth
+17. RLS / tenant / data boundary
+18. entitlement
+19. Central Seat 是否適用
+20. Supabase / DB
+21. R2 / object storage
+22. Cloudflare / nginx / reverse proxy
+23. cookie / SSO
+24. release evidence
+25. known drift / technical debt
 
-先輸出：
+輸出：
 
 CURRENT_ARCHITECTURE =
 CURRENT_DELIVERY_FLOW =
 CURRENT_GAPS =
+EXCEPTIONS =
 
-盤查完成前不要修改。
+在盤查完成前不要大改。
 
 ---
 
-# 二、Source of Truth 與主從關係
+# 三、什麼情況才可以問使用者
 
-所有專案都要先定義以下主從關係。
+只有以下情況可以詢問：
 
-## 1. Git / Local Source
+1. 多個 repo / branch / environment 都可能是 authoritative，無法從證據判定。
+2. 需要真人 OAuth / consent。
+3. HANDOFF 規則要求真人執行 confirmed deploy / promote。
+4. Production 不可逆 mutation 需要明確批准。
+5. secret / credential 完全不存在，且無法從既有正式流程取得。
+6. 產品商業規則本身沒有任何 source/document 可供判斷。
+7. 兩個以上安全方案都成立，且差異屬產品決策，不是工程判斷。
+
+不要詢問：
+
+- repo 裡可以查到的 port
+- domain
+- env name
+- CI workflow
+- Dockerfile
+- Supabase project ref
+- R2 是否存在
+- Central Seat 是否已接
+- deploy script 用法
+- runtime digest
+- branch / commit 是否已 push
+- health endpoint
+- production compose
+
+這些都先自己查。
+
+---
+
+# 四、Source of Truth / 主從規則
+
+必須建立：
+
+SOURCE_OF_TRUTH_MATRIX
+
+至少包含：
+
+Source Code
+Local Docker
+Local Data
+Staging DB
+Staging Storage
+Production DB
+Production Storage
+Migration Files
+Deploy Config
+Release Evidence
+
+每一項標記：
+
+AUTHORITATIVE
+DERIVED
+RUNTIME_ONLY
+EXPLICIT_SYNC_ONLY
+NEVER_REVERSE_SYNC
+
+## 固定規則
 
 Git / Local Source
 = 程式碼與設定的 Source of Truth。
 
-Docker container、Docker volume、Staging runtime、Production runtime
-都不能反向覆蓋 source code。
+Docker container / volume
+不得反向覆蓋 source code。
 
----
+Local DEV data
+不得自動同步到 Staging。
 
-## 2. Local Runtime / Docker
+Staging DB / storage
+不得自動同步到 Production。
 
-Local Docker
-= 本機執行與驗證環境。
+Production promotion
+提升的是：
 
-規則：
-
-- container 內產生的 source 變更不得反寫主 repo
-- Docker volume 不得自動覆蓋 Local Source
-- hydrate / seed / test 不得修改另一環境資料
-- local persistence 只屬於 DEV
-
-如果有 bind mount：
-先確認方向與 ownership。
-
----
-
-## 3. Local Data
-
-Local Data
-= DEV 測試資料。
-
-除非有明確 export/import 任務：
-不得自動同步至 Staging。
-
----
-
-## 4. Staging Data
-
-Staging DB / Supabase / R2
-= 獨立 Staging runtime environment。
-
-規則：
-
-- schema 必須可追溯到 Git migration
-- runtime 狀態不能取代 migration source
-- Staging R2 bucket 與 Local / Production 隔離
-- 不自動雙向同步
-- test fixture 與 Production data 分離
-
----
-
-## 5. Production Data
-
-Production DB / Supabase / R2
-= 獨立 Production environment。
-
-Production 不接收：
-
-- Local Docker volume
-- Local DEV data
-- Staging 測試資料整包複製
-
-Production Promotion 主要提升：
-
-- accepted immutable artifact
+- immutable artifact
 - migration
 - config contract
 - env contract
 
-不是把 Staging database / bucket 整包搬過去。
+不是整包 Staging data。
+
+任何跨環境資料同步必須是明確 one-way operation。
 
 ---
 
-# 三、Clean Candidate
+# 五、Clean Candidate
 
 如果主工作區有 unrelated dirty WIP：
 
@@ -201,13 +273,14 @@ SOURCE_BRANCH =
 APP_SOURCE_COMMIT =
 WORKTREE_CLEAN = YES
 
-不要清理、覆蓋或偷偷提交 unrelated WIP。
+不清除 unrelated WIP。
+不把 unrelated WIP 帶進 release。
 
 ---
 
-# 四、Local Validation
+# 六、Local Validation
 
-依專案實際架構決定測試類型。
+依專案自身架構決定測試。
 
 可包含：
 
@@ -226,11 +299,11 @@ WORKTREE_CLEAN = YES
 - smoke
 - contract
 
-不要照抄其他專案測試名稱。
+不要照抄 DM 或其他產品測試名稱。
 
-標準只有一個：
+標準只有：
 
-**該專案 critical behavior 必須能在 Local 可重現。**
+**critical behavior 必須可重現、可驗證。**
 
 輸出：
 
@@ -238,9 +311,9 @@ LOCAL_TESTS = PASS/FAIL
 
 ---
 
-# 五、CI
+# 七、CI / Immutable Artifact
 
-CI 至少要能產生或證明：
+CI 至少能證明：
 
 APP_SOURCE_COMMIT
 CI_RUN_ID
@@ -257,16 +330,9 @@ BACKEND_IMAGE_DIGEST
 FRONTEND_IMAGE_DIGEST
 
 如果不是 Docker：
+用該平台的 immutable artifact identity。
 
-使用該 runtime 的 immutable artifact identity。
-
-不要為了格式一致而強迫拆 image。
-
----
-
-# 六、Artifact Provenance
-
-所有專案都必須有等價 provenance：
+標準 provenance：
 
 SOURCE SHA
 → CI
@@ -275,20 +341,17 @@ SOURCE SHA
 → RUNNING ARTIFACT
 → RUNTIME SOURCE IDENTITY
 
-禁止只靠：
+禁止只靠 mutable tag：
 
 latest
 staging
 main
-mutable tag
-
-作為唯一 release identity。
 
 ---
 
-# 七、Deploy Config
+# 八、Deploy Config
 
-至少分開記錄：
+分開記錄：
 
 APP_SOURCE_COMMIT
 ARTIFACT_DIGEST / ARTIFACT_ID
@@ -296,13 +359,13 @@ DEPLOY_CONFIG_COMMIT
 RELEASE_ID
 ROLLBACK_RELEASE_ID
 
-不要把一個 SHA 當成所有 identity。
+不要把一個 commit 當成所有 identity。
 
 ---
 
-# 八、Staging Preflight
+# 九、Staging Preflight
 
-每個專案依自身架構檢查：
+依專案實際架構自動判斷需要檢查哪些：
 
 - target environment
 - domain
@@ -310,18 +373,17 @@ ROLLBACK_RELEASE_ID
 - env
 - DB / Supabase
 - R2 / storage
-- required secret presence
+- secret presence
 - artifact
 - deploy config
 - rollback target
 - manifest collision
-- shared cookie / SSO isolation
+- cookie / SSO isolation
 - reverse proxy
 - Cloudflare
 - migration drift
 
-如果某項不適用：
-標 N/A，不要硬加。
+不適用就 N/A。
 
 輸出：
 
@@ -329,33 +391,36 @@ STAGING_PREFLIGHT = PASS/FAIL
 
 ---
 
-# 九、Staging Deploy
+# 十、Staging Deploy
 
-目標統一操作：
+統一操作目標：
 
 .\deploy.ps1 <product> staging
 
-如果現有入口不同：
-建立 compatible wrapper。
+如果專案現有入口不同：
+優先做 compatibility wrapper，
+不要破壞已驗證 deployment chain。
 
-不要破壞既有 verified deploy chain。
+若 HANDOFF 規則要求真人 confirmed mutation：
 
-如果 HANDOFF 規則要求真人確認正式 deploy：
-AI 只做到：
-
+AI：
 DryRun
 → Preflight
 → exact command
 
-由真人執行 confirmed mutation。
+Human：
+執行 confirmed deploy
+
+AI：
+接手 post-deploy verification
 
 ---
 
-# 十、Runtime Identity
+# 十一、Runtime Identity
 
-部署後不能只看 HTTP 200。
+部署後不能只看 200。
 
-至少驗證：
+至少驗：
 
 RUNNING_ARTIFACT
 RUNTIME_SOURCE_COMMIT
@@ -381,11 +446,11 @@ RUNTIME_IDENTITY = PASS/FAIL
 
 ---
 
-# 十一、Health / Ready / Smoke
+# 十二、Health / Smoke
 
-每個專案自己定義 endpoint / command。
+依專案架構決定 endpoint / command。
 
-但需要覆蓋：
+至少覆蓋：
 
 - process alive
 - runtime ready
@@ -393,15 +458,18 @@ RUNTIME_IDENTITY = PASS/FAIL
 - critical user flow
 - fail-closed behavior
 
-不要把 deep diagnostics 全塞進 ready。
+不要把全部 deep diagnostics 塞進 ready。
+
+輸出：
+
+HEALTH =
+SMOKE =
 
 ---
 
-# 十二、Auth / Data Boundary / Commercial Model
+# 十三、Auth / Data Boundary / Commercial Model
 
-先辨識專案真正需要的模型。
-
-可能是：
+先自行判斷專案真正需要：
 
 A. Central Commercial Core + Central Seat + tenant/RLS
 B. entitlement only
@@ -410,7 +478,7 @@ D. public service
 E. internal-only service
 F. custom canonical model
 
-不要因為其他產品有 Seat 就硬加 Seat。
+不要因為 DM 有 Seat 就全部硬加 Seat。
 
 如果使用 Central Seat：
 
@@ -418,10 +486,10 @@ JWT
 → commercial context
 → entitlement
 → Seat
-→ project data boundary
+→ product data boundary
 
-如果不使用：
-明確標 NOT_APPLICABLE。
+如果不需要：
+標 NOT_APPLICABLE。
 
 至少驗：
 
@@ -429,40 +497,50 @@ authorized → allow
 unauthorized → deny
 invalid/no token → canonical deny
 cross-tenant → deny
-commercial dependency unavailable → fail closed
+dependency unavailable → fail closed
+
+輸出：
+
+AUTH_MODEL =
+COMMERCIAL_MODEL =
+DATA_BOUNDARY =
 
 ---
 
-# 十三、Storage / R2 / File Ownership
+# 十四、Storage / R2
 
-如果專案有 R2 / object storage：
+若有 object storage：
 
-先定義：
+自動查出：
 
-LOCAL_BUCKET / LOCAL_FILES
-STAGING_BUCKET
-PRODUCTION_BUCKET
+LOCAL_STORAGE
+STAGING_STORAGE
+PRODUCTION_STORAGE
 
-三者不得自動互同步。
+要求環境隔離。
 
-需要 migration 時：
-必須是 explicit one-way operation。
+禁止：
 
-不得因 Docker startup / test / seed
-把 Staging 或 Production storage 覆蓋。
+Docker startup
+test
+seed
+hydrate
+migration
+
+自動把另一環境 storage 覆蓋。
+
+跨環境搬移必須 explicit one-way operation。
 
 ---
 
-# 十四、Real Staging E2E
+# 十五、Real Staging E2E
 
-使用真實 Staging runtime。
+依產品自己的 critical flow 設計。
 
-依專案 critical flow 定義 E2E。
-
-至少：
+至少驗：
 
 - login / auth
-- main user flow
+- main workflow
 - read/write cycle（如適用）
 - authorization
 - data isolation
@@ -476,13 +554,13 @@ STAGING_E2E = PASS/FAIL
 
 ---
 
-# 十五、Release Evidence
+# 十六、Release Evidence
 
-每個產品接入：
+所有產品都接入：
 
 F:\00-Ticenpi-SaaS\.release-evidence\<product>\
 
-Evidence 至少包含：
+至少保存：
 
 product
 environment
@@ -504,15 +582,15 @@ accepted_at
 
 DEPLOYED ≠ ACCEPTED
 
-mandatory E2E 全 PASS 才：
+只有 mandatory Staging E2E PASS：
 
 STAGING_RELEASE_ACCEPTED = YES
 
 ---
 
-# 十六、Status Command
+# 十七、Status
 
-目標：
+統一目標：
 
 .\release.ps1 <product> status
 
@@ -527,9 +605,9 @@ ROLLBACK_RELEASE_ID
 
 ---
 
-# 十七、Production Promotion
+# 十八、Production Promotion
 
-目標：
+統一目標：
 
 .\promote.ps1 <product> production
 
@@ -545,22 +623,22 @@ ROLLBACK_RELEASE_ID
 
 ---
 
-# 十八、Production Preflight
+# 十九、Production Preflight
 
-依專案實際架構檢查：
+自行依產品架構檢查：
 
 - Production target
 - domain / port
 - env
 - DB / Supabase
-- R2 / storage
-- secrets presence
+- storage
+- secret presence
 - migration/schema drift
 - accepted artifact
 - rollback
 - reverse proxy
 - Cloudflare
-- cookie / SSO isolation
+- cookie / SSO
 - external integration prerequisites
 
 輸出：
@@ -569,58 +647,28 @@ PRODUCTION_PREFLIGHT = PASS/FAIL
 
 ---
 
-# 十九、Production Canary
+# 二十、Production Canary
 
-依專案實際功能決定。
+依產品實際功能設計。
 
-例如可能包含：
+可能包含：
 
 - real login
-- create/read/update
-- external API
-- storage upload/download
-- webhook
+- CRUD
 - publish
-- email
+- upload/download
 - OCR
 - scraper
+- webhook
+- external API
 - tenant isolation
 
-不要照抄別的產品。
+不要照抄其他產品。
 
 PASS 後：
 
 PRODUCTION_RELEASE_ACCEPTED = YES
 GO_LIVE = YES
-
----
-
-# 二十、同步規則總表
-
-必須輸出：
-
-SOURCE_OF_TRUTH_MATRIX
-
-至少列：
-
-Source Code
-Local Docker
-Local Data
-Staging DB
-Staging Storage
-Production DB
-Production Storage
-Migration Files
-Deploy Config
-Release Evidence
-
-每一項標示：
-
-AUTHORITATIVE
-DERIVED
-RUNTIME_ONLY
-NEVER_REVERSE_SYNC
-EXPLICIT_SYNC_ONLY
 
 ---
 
@@ -638,13 +686,13 @@ ADD
 FIX
 NOT_APPLICABLE
 
-只有 GAP 明確後才改。
+只有 GAP 明確後才修改。
 
 ---
 
-# 二十二、最終統一操作目標
+# 二十二、最終操作目標
 
-無論專案細節不同，最後操作應盡量統一：
+每個 Ticenpi 產品最後都盡量統一成：
 
 .\deploy.ps1 <product> staging
 .\release.ps1 <product> status
@@ -653,19 +701,20 @@ NOT_APPLICABLE
 其中：
 
 deploy
-= 跑該專案自己的 Staging delivery chain
+= 跑該產品自己的 Staging delivery chain
 
 status
 = 回報 accepted evidence
 
 promote
-= promote 同一個 accepted artifact 到 Production
+= 將同一個 ACCEPTED immutable artifact 提升到 Production
 
 ---
 
 # 最終輸出
 
 PROJECT_NAME =
+PROJECT_REPO =
 
 WORKFLOW_PARITY = PASS/FAIL
 
@@ -695,6 +744,8 @@ PRODUCTION_DEPLOY =
 PRODUCTION_CANARY =
 GO_LIVE =
 
+EXCEPTIONS =
+
 KEEP =
 ADAPT =
 ADD =
@@ -707,13 +758,22 @@ CI_RUNS =
 EVIDENCE_PATHS =
 COMMAND_EXAMPLES =
 
+若真的缺資訊：
+
+NEED_USER_INPUT =
+WHY_IT_CANNOT_BE_DISCOVERED =
+WHY_IT_BLOCKS_NEXT_STEP =
+
+只有在這三項都能說清楚時，才向使用者提問。
+
 若遇到 blocker：
 
 BLOCKER =
 ROOT_CAUSE =
 SMALLEST_NEXT_ACTION =
 
-最後再次遵守：
+最後遵守：
 
 **Workflow parity, not file parity.**
+**Auto-discover first, ask only when truly necessary.**
 **Environment isolation, not automatic data synchronization.**
