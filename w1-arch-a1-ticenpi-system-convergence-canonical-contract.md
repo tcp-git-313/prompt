@@ -187,6 +187,123 @@ Recent audit identified possible divergence such as:
 
 Validate all of these.
 
+## 2.1 FIXED STAGING TEST IDENTITY CONTRACT — MUST VERIFY LIVE STATE
+
+There are two intended fixed ordinary-user Staging test identities for Central Seat positive/negative testing:
+
+- `job0975805890@gmail.com`
+- `tcp.ai313@gmail.com`
+
+The intended test model is:
+
+```
+One Staging Business Customer
+│
+├─ both users are active members of the SAME Customer
+│
+├─ target product has an active entitlement
+│
+├─ seat_limit is sufficient for the intended positive path
+│
+├─ job0975805890@gmail.com
+│   └─ ASSIGNED Seat
+│      └─ expected product access = ALLOW when product Seat enforcement is active
+│
+└─ tcp.ai313@gmail.com
+    └─ UNASSIGNED Seat
+       └─ expected product access = DENY when product Seat enforcement is active
+```
+
+This is the **intended contract**, not proof that Staging currently matches it.
+
+A previous Staging preflight reportedly found both users without usable `customer_members` membership and `product_seat_assignments` empty. That historical finding must not be treated as today's state.
+
+You MUST independently determine the current state from available evidence.
+
+For each identity, verify or determine:
+
+```
+AUTH_USER_EXISTS =
+PROFILE_EXISTS =
+PLATFORM_ROLE =
+TEST_ACCESS =
+CUSTOMER_ID =
+CUSTOMER_TYPE =
+MEMBERSHIP_EXISTS =
+MEMBERSHIP_STATUS =
+TARGET_PRODUCT =
+ENTITLEMENT_EXISTS =
+ENTITLEMENT_STATUS =
+SEAT_LIMIT =
+SEAT_ASSIGNMENT =
+SEAT_STATUS_RPC_RESULT =
+PRODUCT_ACCESS_EXPECTATION =
+EVIDENCE_LEVEL =
+LAST_VERIFIED =
+```
+
+Rules:
+
+- `tcp.a2026i@gmail.com` or any platform-admin identity must NOT be used as the positive/negative ordinary-user Seat fixture because admin bypass can invalidate the test.
+- Do not substitute another account merely because it is easier.
+- Do not create membership, entitlement, Seat assignment, or customer records in this task.
+- Do not change `platform_role`, `test_access`, or any auth metadata.
+- If current read-only Staging access is available, perform the safest non-mutating verification.
+- If live read-only verification is unavailable, exhaust committed source, evidence files, current docs, git history, CI artifacts, and existing handoffs before writing `NOT_VERIFIED`.
+- Clearly distinguish historical evidence from current live Staging evidence.
+
+The canonical docs must state whether the fixed Staging Seat fixture is:
+
+- `READY`
+- `PARTIAL`
+- `MISSING`
+- `NOT_VERIFIED`
+
+and must state the exact missing pieces.
+
+If the fixture is not READY, create a smallest follow-up task named similar to:
+
+`STAGING-SEAT-FIXTURE-A1 — Establish fixed assigned/unassigned Central Seat test identities`
+
+That follow-up task may be a Staging mutation task, but DO NOT execute it in this convergence run.
+
+## 2.2 AUTONOMOUS GAP-RESOLUTION RULE
+
+Do not ask the user to reconstruct architecture or repeat information that can be discovered from the working environment.
+
+When information is missing or contradictory, investigate in this order:
+
+1. current canonical docs
+2. committed source
+3. deployment manifests/scripts
+4. database migration/RPC source
+5. git history / branches / worktrees
+6. CI workflows, runs, artifacts, and release evidence
+7. existing handoff/current-state documents
+8. read-only Staging runtime evidence when access exists
+9. read-only Production runtime evidence only when necessary and safely available
+
+For a **documentation gap or stale statement**:
+- find the evidence
+- repair the canonical documentation
+- validate cross-links
+- commit only documentation owned by this task
+
+For a **missing implementation/runtime/data state**:
+- verify that it is actually missing
+- document the exact blocker
+- identify owner/repo/environment
+- produce the smallest next task
+- do NOT silently implement or mutate runtime in this run
+
+For an **unknown value after exhaustive search**:
+- write `UNKNOWN / NOT_VERIFIED`
+- record exactly what was searched
+- record what evidence is missing
+- do not guess
+
+The agent should continue through discoverable gaps without pausing for user confirmation unless proceeding would require a forbidden mutation, destructive action, unknown secret, or materially ambiguous ownership that cannot be resolved from evidence.
+
 ---
 
 # 3. PHASE A — REPOSITORY & EVIDENCE INVENTORY
@@ -497,6 +614,30 @@ KNOWN_GAPS
 ```
 
 Then include one current-state entry for each known product or link to its authoritative product-specific file.
+
+### C6. `STAGING_TEST_IDENTITY_CONTRACT.md`
+
+Create/update a canonical Staging test-identity contract.
+
+It must document:
+
+- the two fixed ordinary-user identities:
+  - `job0975805890@gmail.com`
+  - `tcp.ai313@gmail.com`
+- why platform-admin accounts cannot serve as normal Seat fixtures
+- intended same-Customer assigned/unassigned topology
+- product-by-product use of the fixture
+- current live/historical verification status
+- membership status
+- entitlement status
+- Seat assignment status
+- Seat limit
+- expected ALLOW/DENY behavior only where Seat enforcement is active
+- how shadow-mode products should evaluate the same identities without turning observation into access control
+- how to reset/repair the fixture in a separate approved Staging mutation task
+- evidence date and evidence level
+
+The contract must not claim the fixture is READY unless current evidence proves all required relationships.
 
 ---
 
@@ -846,6 +987,7 @@ SYSTEM_OWNERSHIP = PASS/PARTIAL/MISSING
 PRODUCT_INTEGRATION_CONTRACT = PASS/PARTIAL/MISSING
 CENTRAL_SEAT_CONTRACT = PASS/PARTIAL/MISSING
 EXTRACTIONHUB_CONTRACT = PASS/PARTIAL/MISSING
+STAGING_TEST_IDENTITY_CONTRACT = PASS/PARTIAL/MISSING
 ```
 
 ## D. SYSTEM OWNERSHIP SUMMARY
@@ -912,6 +1054,42 @@ PRODUCT_CONSUMERS_PROVEN =
 CURRENT_BLOCKERS =
 ```
 
+## G2. STAGING TEST IDENTITIES
+
+Report exactly:
+
+```
+STAGING_SEAT_FIXTURE = READY/PARTIAL/MISSING/NOT_VERIFIED
+
+ASSIGNED_TEST_USER = job0975805890@gmail.com
+ASSIGNED_AUTH_USER_EXISTS =
+ASSIGNED_MEMBERSHIP =
+ASSIGNED_CUSTOMER =
+ASSIGNED_ENTITLEMENT =
+ASSIGNED_SEAT =
+ASSIGNED_SEAT_STATUS =
+ASSIGNED_EXPECTED_ACCESS =
+
+UNASSIGNED_TEST_USER = tcp.ai313@gmail.com
+UNASSIGNED_AUTH_USER_EXISTS =
+UNASSIGNED_MEMBERSHIP =
+UNASSIGNED_CUSTOMER =
+UNASSIGNED_ENTITLEMENT =
+UNASSIGNED_SEAT =
+UNASSIGNED_SEAT_STATUS =
+UNASSIGNED_EXPECTED_ACCESS =
+
+SAME_CUSTOMER_PROVEN =
+TARGET_PRODUCT =
+SEAT_LIMIT =
+LIVE_STAGING_VERIFIED =
+LAST_VERIFIED =
+MISSING_PIECES =
+NEXT_FIXTURE_TASK =
+```
+
+Do not return expected ALLOW/DENY as proven runtime behavior unless the product is actually in Seat enforcement mode and the corresponding evidence exists.
+
 ## H. EVIDENCE QUALITY
 
 Report:
@@ -975,7 +1153,7 @@ Do not execute those implementation tasks in this run.
 
 The work is successful when the following statement is true:
 
-> A new engineer or AI agent can begin at one canonical Ticenpi system document, determine the authoritative owner and current evidence level for Commercial Core, Central Seat, Launcher, ExtractionHub, every product, Staging, Production, release promotion, and rollback, and can identify the next safe task without asking the user to reconstruct the architecture from chat history.
+> A new engineer or AI agent can begin at one canonical Ticenpi system document, determine the authoritative owner and current evidence level for Commercial Core, Central Seat, Launcher, ExtractionHub, every product, Staging, Production, release promotion, rollback, and the fixed assigned/unassigned Staging Seat test identities, and can identify the next safe task without asking the user to reconstruct the architecture from chat history.
 
 Do not stop after analysis.
 
