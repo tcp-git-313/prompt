@@ -68,25 +68,31 @@ PRODUCTION_PORT = 8890
 
 ```text
 BRANCH = codex/591-w6-rc-20260925
-HEAD = 51bbb38e3df23f65dbc4aa258ceac271710bfb09
+HEAD = 2b32884d9675cf61e0d243e3f65911fecfc5682c
 WORKTREE = CLEAN
 REMOTE_BRANCH = SAME HEAD
 VPS_PREREQ_FIX_COMMIT = 66cf9da6d10d961080f36fa0dcc59f8f3d7971fa
 VPS_PREREQ_FIX_CI = 36237687833 (success; image-scope false; arm64 image skipped)
-LATEST_RC_DOCS_COMMIT = 51bbb38e3df23f65dbc4aa258ceac271710bfb09
-LATEST_RC_DOCS_CI = 36237782880 (success; image-scope false; arm64 image skipped)
-SOURCE_COMMIT_FOR_ARTIFACT = 3d23aaecef70e0adb0310097313bb810521f9c46
-SOURCE_CI_RUN = 36099345595 (success)
+STAGING_SECRET_MAPPING_COMMIT = 5bd9f4e31c973a10136eedb3078e5e74f1e683ec
+STAGING_SECRET_MAPPING_CI = 36240258037 (success; image-scope false; arm64 image skipped)
+STAGING_ENV_RECONCILE_COMMIT = 6f731a2d3f2052fed9a1f8edf37cc631cfc56636
+STAGING_ENV_RECONCILE_CI = 36245180545 (success; image-scope false; arm64 image skipped)
+SOURCE_COMMIT_FOR_ARTIFACT = 8532843816e80653b3a0c73414494fb4a722d783
+SOURCE_CI_RUN = 36244073236 (success; image-scope true; arm64 image success)
 IMAGE = ghcr.io/tcp-git-313/ticenpi-591
-IMAGE_DIGEST = sha256:1b64a2f947b4aeeb45059221605f5fe92a5672cd98b6d98bcfb40efa3a045454
+IMAGE_DIGEST = sha256:ebd73efbdb664704cf28681abe90e1ec0b0d966214aefe42b32ab2d73d812ff3
 PLATFORM = linux/arm64
-PIN_COMMIT = c595bf74e53fe192a97b1e166700ea193dbc012c
-LATEST_EXACT_CI_RUN = 36237782880 (success, HEAD 51bbb38)
+PIN_COMMIT = f8daadf58d7f451153b990bb7f88b33e12672d0c
+PIN_CI_RUN = 36244503553 (success; image-scope false; arm64 image skipped)
+LATEST_RC_DOCS_COMMIT = 2b32884d9675cf61e0d243e3f65911fecfc5682c
+LATEST_EXACT_CI_RUN = 36245244836 (success; HEAD 2b32884; image-scope false; arm64 image skipped)
+LOCAL_DOCKER = PASS
+PHASE_2 = PASS
 ```
 
-已完成：Production 58/58 source reconciliation、auth/JWKS、Commercial＋Central Seat gate、HTTP/WS gate、`/api/live`、`/api/ready`、runtime identity、cookie isolation、單一 immutable image、digest pin、exact-commit CI、中央 service registry、H2 fixture。
+已完成：Production 58/58 source reconciliation、auth/JWKS、Commercial＋Central Seat gate、HTTP/WS gate、`/api/live`、`/api/ready`、runtime identity、cookie isolation、既有中央 Staging env 的 product-scoped 自動映射、使用者操作式 VPS env 冪等同步 helper、Local Docker、單一 immutable ARM64 image、新 digest pin、exact-commit CI、中央 service registry、H2 fixture。
 
-尚未完成：canonical `591-staging` secret contract、Local Docker 實跑、Staging VPS env、中央腳本同步到 VPS、relay、DNS/tunnel、OAuth redirect、Staging deploy、rollback drill、真人 E2E、release evidence、Production 形式轉換與 go-live。
+尚未完成：中央 deploy main 的 remote publication、先前可能曝露秘密的 rotation 使用者確認、Staging VPS env、中央腳本同步到 VPS、relay、DNS/tunnel、OAuth redirect、Staging deploy、rollback drill、真人 E2E、release evidence、Production 形式轉換與 go-live。
 
 ### 2.2 H2 fixture 已完成，不得重建
 
@@ -127,18 +133,20 @@ command = docker exec -w /app/591 <container> python critical_function_check.py
 
 中央 main 尚未 push；VPS 也尚未含修復後的 `591-core`。source 修復不等於 runtime 修復。
 
-已接續完成 WP-1A：RC commit `66cf9da6d10d961080f36fa0dcc59f8f3d7971fa` 修正唯讀 VPS prereq transport，使用 LF 正規化的 SSH stdin，並輸出 remote `591-core` presence；測試 `25 passed`、PowerShell parse PASS、實際唯讀 SSH PASS。該 commit exact CI `36237687833` 成功。execution-log docs commit `51bbb38e3df23f65dbc4aa258ceac271710bfb09` 的 exact CI `36237782880` 也成功；兩者 image-scope=false、ARM64 build skipped，既有 digest 未變。
+已接續完成 WP-1A：RC commit `66cf9da6d10d961080f36fa0dcc59f8f3d7971fa` 修正唯讀 VPS prereq transport，使用 LF 正規化的 SSH stdin，並輸出 remote `591-core` presence；測試 `25 passed`、PowerShell parse PASS、實際唯讀 SSH PASS。該 commit exact CI `36237687833` 成功。execution-log docs commit `51bbb38e3df23f65dbc4aa258ceac271710bfb09` 的 exact CI `36237782880` 也成功；兩者 image-scope=false、ARM64 build skipped。
+
+已接續完成 WP-1B、H3 env helper 與 Phase 2：RC commit `5bd9f4e31c973a10136eedb3078e5e74f1e683ec` 以既有中央 Staging env 做 value-blind、process-scoped 映射；CI `36240258037` 成功。commit `6f731a2d3f2052fed9a1f8edf37cc631cfc56636` 把既有 VPS prereq helper 擴充成預設唯讀、只有使用者明確下 `-Step env -Apply` 才會把四個中央值經 SSH stdin 冪等寫入 Staging env；CI `36245180545` 成功且 ARM64 skipped。Local Docker 揭露非 root 啟動會建立被排除的 `591/static`；commit `8532843816e80653b3a0c73414494fb4a722d783` 做最小修正並通過完整 Local Docker、volume persistence、source hash、unit/frontend/policy gate。CI `36244073236` 產生新 ARM64 digest `sha256:ebd73efbdb664704cf28681abe90e1ec0b0d966214aefe42b32ab2d73d812ff3`；pin commit `f8daadf58d7f451153b990bb7f88b33e12672d0c` 的 CI `36244503553` 成功。最新 docs-only commit `2b32884d9675cf61e0d243e3f65911fecfc5682c` 的 exact CI `36245244836` 也成功，arm64 正確 skipped。
 
 ### 2.4 已知前置缺口
 
-1. **已修復 source**：`scripts/w6/591-staging-vps-prereqs.ps1` 以 LF-normalized process stdin 呼叫 SSH `bash -s --`，CI `36237687833` PASS；VPS 仍未更新此檔。
-2. `scripts/w6/Use-591StagingSecrets.ps1` 目前呼叫中央 loader `-Service 591`；該 service 是 Production `S591_*` contract，會得到錯誤 project ref。不得以 rename/copy Production 值繞過。
-3. 中央 loader 目前沒有經證明的 `591-staging` contract。必須由中央 secrets owner 提供 canonical 介面，至少輸出 Staging 的 `SUPABASE_URL`、publishable/anon key、service-role 相容名稱與 591 Staging 專用 Fernet key；來源名稱不可猜。
+1. **已修復 source**：`scripts/w6/591-staging-vps-prereqs.ps1` 以 LF-normalized process stdin 呼叫 SSH `bash -s --`，並已加入顯式 `-Step env -Apply` 的安全 env reconcile；CI `36245180545` PASS。VPS env 仍未由使用者執行寫入。
+2. **已修復 secret mapping**：中央 loader 的既有 `STAGING_SUPABASE_URL`、`STAGING_SUPABASE_PUBLISHABLE_KEY`、`STAGING_SUPABASE_SERVICE_ROLE_KEY`、`STAGING_S591_AUTOPOST_FERNET_KEY` 均已 value-blind 證明為 PRESENT。產品 helper 只映射四個必要裸名，恢復廣域 process env 後清除 Production／其他產品 prefixes；實跑證明 target=JLSQ、`PRODUCTION_REF_PRESENT=NO`、forbidden-prefix count=0。不得再要求使用者手動提供值，也不得改 HUB WIP。
+3. **Phase 2 已完成**：Local Docker `live=200`、`ready=200`、未登入 credentials API=401、runtime config/Playwright/data-exclusion PASS；named volume 經 down/up 保留，Production-source JSON hashes 未變。新 ARM64 digest 已 pin 且 exact CI 全綠。
 4. Staging release root 與 env file 尚不存在；8891 最後一次唯讀檢查為 free。
 5. `.release-evidence\591` 尚不存在。
 6. 先前終端曾意外顯示中央 secret values。所有受影響的 service-role／DB／Fernet／R2 等秘密，在任何部署前必須由使用者完成 rotation；不得在 log、prompt、commit 或對話重現值。
 7. 最新只讀 VPS 狀態：release root/env missing、8891 free、forbidden refs absent；`/opt/ticenpi/591/current` 仍指向 `20260912-163944`。VPS `deploy.sh` hash 與 local central 一致；VPS `critical-smoke.sh` hash `84d62cb8e2e7d6653e654854fb3c024ed8090bb4ad6928aab7169fd69f55a1bd`，不等於修復後 central file，且 remote grep 確認 `591-core=MISSING`。未做 VPS 寫入。
-8. 中央 secret-loader worktree `F:\HUB` 在 commit `33d5da7` 有大量未提交修改；`scripts/load-ticenpi-secrets.ps1` 已修改，`scripts/sync-secrets.ps1` 未追蹤。tracked/current loader 與 sync inventory 都沒有 `591-staging` service contract。不得改動或 stage 這些共享 WIP。
+8. 中央 secret-loader worktree `F:\HUB` 在 commit `33d5da7` 有大量未提交修改；`scripts/load-ticenpi-secrets.ps1` 已修改，`scripts/sync-secrets.ps1` 未追蹤。現有中央 Staging env 已足以由產品 helper 安全映射，因此這些 HUB WIP 仍不得改動、stage 或當成 blocker。
 
 ## 3. 不可變架構決策
 
@@ -168,8 +176,8 @@ Luna 可自行做：read-only 盤查、RC source edit/test/commit/push、中央 
 | Gate | 使用者動作 |
 |---|---|
 | H-C0 | 若中央 main 的 5 個 local commits 都經確認，push `F:\00-Ticenpi-SaaS\deploy` main；不得由 Luna 在不知道另外 3 個 commit 擁有者意圖時直接推 shared main |
-| H-S1 | 中央 secrets owner 建立／核准 canonical `591-staging` contract，並 rotation 先前可能曝露的秘密；不把值貼進對話 |
-| H3 | VPS 建立 Staging release root/env、安裝比對後的中央 merged scripts；只能透過正式中央流程，不整份盲覆蓋 |
+| H-S1 | 確認先前可能曝露的 Staging secrets 已完成 rotation；不把值貼進對話。既有 env 自動映射已 PASS，不需建立新 contract 或手動提供值 |
+| H3 | 使用者執行 RC 的 `591-staging-vps-prereqs.ps1 -Step env -Apply`，讓 helper 自動抓中央值並建立 Staging root/env；再安裝比對後的中央 merged scripts。不得手動貼值、不得整份盲覆蓋 |
 | H4 | 建立 591 Staging relay、Cloudflare DNS/tunnel route，完成後 Luna 唯讀驗證 |
 | H5 | Supabase Staging Redirect URLs 與 Google OAuth origin；Site URL 不改 |
 | H6 | 執行真正 Staging deploy 與 rollback drill |
@@ -202,8 +210,8 @@ git -C F:\00-Ticenpi-SaaS\deploy status --short
 git -C F:\00-Ticenpi-SaaS\deploy fetch origin main
 git -C F:\00-Ticenpi-SaaS\deploy rev-list --left-right --count origin/main...main
 git -C F:\00-Ticenpi-SaaS\deploy log -8 --oneline
-gh run view 36109019041 -R tcp-git-313/ticenpi591 --json headSha,status,conclusion,url
-gh run view 36099345595 -R tcp-git-313/ticenpi591 --json headSha,status,conclusion,url
+gh run view 36244073236 -R tcp-git-313/ticenpi591 --json headSha,status,conclusion,url
+gh run view 36245244836 -R tcp-git-313/ticenpi591 --json headSha,status,conclusion,url
 Test-Path F:\00-Ticenpi-SaaS\.release-evidence\591
 ```
 
@@ -215,8 +223,8 @@ Phase 0 首次回報固定格式：
 RC_STATE =
 CENTRAL_DEPLOY_STATE =
 CENTRAL_REMOTE_DELTA =
-CI_7C3AFC3 =
-ARTIFACT_3D23AAE =
+CI_LATEST_2B32884 =
+ARTIFACT_8532843 =
 VPS_RELEASE_ROOT =
 VPS_ENV_FILE =
 PORT_8891 =
@@ -226,7 +234,7 @@ CLASSIFICATION = KEEP / ADJUST / CONFLICT
 PHASE_0 = PASS / HARD_STOP
 ```
 
-## 7. Phase 1 — 收斂剩餘 source 與 secret contract
+## 7. Phase 1 — 收斂剩餘 source 與 secret mapping
 
 ### WP-1A：修復 VPS read-only prereq transport — DONE
 
@@ -247,38 +255,51 @@ commit：
 fix(591): make staging VPS prereq transport shell-safe (66cf9da)
 ```
 
-### WP-1B：建立 canonical 591 Staging secret contract
+### WP-1B：沿用既有中央 Staging env 的 product-scoped 映射 — DONE
 
-先唯讀確認中央 loader 是否已出現正式 `591-staging`。截至 2026-09-26，沒有此 contract，且 HUB loader/sync 目標檔有他人未提交改動；停在 H-S1。中央 secrets owner 必須先完成或明確認領這些 WIP，審定 Staging source names 與 rotation 狀態，再提供可核對的正式介面。不得自行拼接 `sign-staging`、`orc-staging`、`S591_*`，也不得把 Production Fernet 當 Staging 值。
-
-contract 必須具備：
+使用者確認必要值本來就在中央 env。Executor 已透過中央 loader 做 value-blind inventory，證明以下既有 source names 均為 PRESENT；沒有讀取或輸出值：
 
 ```text
-SERVICE = 591-staging
-PROJECT_REF = jlsqjvehwblkeuycjoyj
-BARE OUTPUTS = SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY, AUTOPOST_FERNET_KEY
+STAGING_SUPABASE_URL -> SUPABASE_URL
+STAGING_SUPABASE_PUBLISHABLE_KEY -> SUPABASE_ANON_KEY
+STAGING_SUPABASE_SERVICE_ROLE_KEY -> SUPABASE_SERVICE_KEY
+STAGING_S591_AUTOPOST_FERNET_KEY -> AUTOPOST_FERNET_KEY
+TARGET_SUPABASE_REF = jlsqjvehwblkeuycjoyj
 PRODUCTION_REF_PRESENT = NO
 PERSISTENCE = process scope only
 LOG OUTPUT = names + PRESENT/MISSING + project ref only
 ```
 
-由中央 secrets owner 決定 source variable names，並將它們納入中央 loader/sync 正式 allowlist。Luna 不修改已有他人 WIP 的 HUB 檔案。
+產品 helper 先 snapshot process env，呼叫既有中央 loader，再只解析上述四個 Staging names；接著恢復廣域 process env，只暴露四個必要裸名，清除 `S591_`、`STAGING_`、`PRODUCTION_`、`SIGN_`、`DM_`、`POST_` 與 `SUPABASE_SERVICE_ROLE_KEY`。不得使用 `-Service 591` 的 Production mapping。HUB WIP 未修改。
 
-owner 完成後，產品 helper 改為只呼叫 `-Service 591-staging -Scoped`，先清除所有可能殘留的裸名與 Production-prefixed env，再載入，再驗 project ref；不可先載入 Production 再覆寫。
-
-只改：
+已改：
 
 - `scripts/w6/Use-591StagingSecrets.ps1`
-- 對應的 offline test
+- `591/TEST/unit/test_staging_secret_helper.py`
 - `591/docs/W6-591-EXECUTION-LOG.md`
+
+驗證：PowerShell parse PASS、value-blind live helper PASS、`27 passed`、exact CI `36240258037 = success`；image-scope false、arm64 skipped。
 
 commit：
 
 ```text
-fix(591): consume canonical staging secret contract
+fix(591): consume existing staging secret mapping (5bd9f4e)
 ```
 
-### WP-1C：發布中央 591-core 修復
+### WP-1C：提供使用者操作式 Staging env reconcile — DONE
+
+既有 `scripts/w6/591-staging-vps-prereqs.ps1` 保持預設唯讀，新增兩個明確模式：
+
+```powershell
+.\scripts\w6\591-staging-vps-prereqs.ps1 -Step env          # 唯讀＋value-blind dry run
+.\scripts\w6\591-staging-vps-prereqs.ps1 -Step env -Apply   # H3 時由使用者執行的唯一 env 寫入
+```
+
+`-Apply` 先做 VPS read-only probe，再呼叫 `Use-591StagingSecrets.ps1` 自動取得四個既有中央 Staging 值。值只以 in-memory base64 經 SSH stdin 傳送，不出現在 command arguments、console、local file 或 repo；remote 只寫 manifest required keys，mode 600、內容相同不重寫、內容不同先備份再原子替換。最後 read-back 只顯示 project ref、Production ref absence、key presence 與 PASS/FAIL，並清除本 process 的四個 alias。
+
+PowerShell parse、`31 passed`、live dry run PASS；commit `6f731a2d3f2052fed9a1f8edf37cc631cfc56636`，exact CI `36245180545 = success`，image-scope false、arm64 skipped。H3 尚未執行，所以 VPS root/env 目前仍 missing。
+
+### WP-1D：發布中央 591-core 修復
 
 H-C0 前先證明：
 
@@ -295,22 +316,23 @@ H-C0 前先證明：
 
 ```text
 PREREQ_SCRIPT = PASS
-SECRET_CONTRACT_591_STAGING = PASS
+STAGING_SECRET_MAPPING = PASS
+STAGING_ENV_RECONCILE_HELPER = PASS
 CENTRAL_591_CORE_REMOTE = PASS
 ROTATED_SECRETS = USER_CONFIRMED
 PHASE_1 = PASS
 ```
 
-## 8. Phase 2 — Local Docker 與 exact-commit CI
+## 8. Phase 2 — Local Docker 與 exact-commit CI — DONE
 
 1. 啟動 Docker Desktop／可用 ARM64 build path；先跑 read-only daemon check。
-2. 透過 canonical `591-staging` loader 注入 process env；只印 presence/ref。
+2. 透過 `scripts/w6/Use-591StagingSecrets.ps1` 呼叫既有中央 loader，注入 product-scoped process env；只印 presence/ref。
 3. 執行產品現有 unit/frontend/policy tests。
 4. 執行 `scripts/w6/start_local_docker.ps1` 與 `verify_local_docker.ps1`。
 5. 驗證 image runtime：
    - `/api/live` 200。
    - `/api/ready` 在真實 Staging dependencies 可用時 200；缺依賴時 503 且不洩漏深度診斷。
-   - `/api/health` identity：environment=staging、service=591runtimestaging、project ref=JLSQ、release/git SHA 非空、dry-run=true。
+   - Local `/api/health` identity：environment=local、service=591、project ref=JLSQ、release/git SHA 非空、dry-run=true。Staging 的 environment/service 身分留到部署後驗證。
    - 無 Bearer 的受保護 API 為 401。
    - output 寫入只落 named volume，repo/source 無新檔。
 6. 停止 local compose 但不刪 volume；確認 RC 只含預期修改。
@@ -323,11 +345,12 @@ Phase 2 出口：
 
 ```text
 LOCAL_DOCKER = PASS
-RC_HEAD = <40hex>
-EXACT_CI_RUN = <id>
+RC_HEAD = 2b32884d9675cf61e0d243e3f65911fecfc5682c
+ARTIFACT_SOURCE_COMMIT = 8532843816e80653b3a0c73414494fb4a722d783
+EXACT_CI_RUN = 36244073236 (artifact), 36244503553 (pin), 36245180545 (env helper), 36245244836 (latest docs)
 EXACT_CI = PASS
-IMAGE_REBUILT = YES/NO
-ACCEPTANCE_DIGEST = sha256:<64hex>
+IMAGE_REBUILT = YES
+ACCEPTANCE_DIGEST = sha256:ebd73efbdb664704cf28681abe90e1ec0b0d966214aefe42b32ab2d73d812ff3
 COMPOSE_PIN_MATCH = YES
 PHASE_2 = PASS
 ```
@@ -338,11 +361,16 @@ PHASE_2 = PASS
 
 Luna 先提供使用者確切步驟，使用者在 VPS／中央正式工具執行：
 
-1. 建立 `/opt/ticenpi/591-runtime-staging` 所需 shared/env 路徑，不碰 `/opt/ticenpi/591`。
-2. 透過核准的 `591-staging` sync 流程寫入 env；env 必須包含 manifest required keys 與：
-   `TICENPI_ENVIRONMENT=staging`、`TICENPI_SERVICE_NAME=591runtimestaging`、`TICENPI_SUPABASE_PROJECT_REF=jlsq...`、`DRY_RUN_SUBMIT=true`、`AUTOPOST_REQUIRE_AUTH=1`、`AUTOPOST_SEAT_REQUIRED=1`。
-3. 先下載／比對 VPS `deploy.sh`、`critical-smoke.sh` 與 remote main。若 VPS 有額外未合併功能，停止；不得整份覆蓋。
-4. 安裝 reviewed merged scripts，hash 留證。
+1. H-C0 與 H-S1 都已 PASS 後，在本機 RC 執行下列唯一 env 寫入命令；它會自行先檢查、從中央 env 取值、建立 `/opt/ticenpi/591-runtime-staging/shared/deploy/runtime-staging/.env`，不需也禁止使用者貼任何值：
+
+   ```powershell
+   cd F:\00-Ticenpi-SaaS\.worktrees\591-w6-rc
+   .\scripts\w6\591-staging-vps-prereqs.ps1 -Step env -Apply
+   ```
+
+2. `.env` 只含 manifest required keys：`SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_KEY`、`AUTOPOST_FERNET_KEY`。`TICENPI_ENVIRONMENT=staging`、`TICENPI_SERVICE_NAME=591runtimestaging`、project ref、`DRY_RUN_SUBMIT=true`、auth/seat gates 均已固定在 reviewed compose，不複製進 secret file。
+3. Luna 先下載／比對 VPS `deploy.sh`、`critical-smoke.sh` 與已 push 的 central remote main。若 VPS 有額外未合併功能，停止；不得整份覆蓋。
+4. Luna 提供從已 push central main 安裝 reviewed merged scripts 的確切使用者命令；使用者執行，Luna 再比對 hash 留證。不得從 branch、dirty worktree 或 HUB WIP 安裝。
 
 完成後 Luna 只讀驗證 presence、非秘密設定、forbidden ref absent、`591-core` branch、8891 owner。任何值錯誤：`HARD_STOP: STAGING_ENV_IDENTITY_MISMATCH`。
 
@@ -564,7 +592,7 @@ H-P2 由使用者決定 canary 帳號、物件與是否真的送出一筆刊登�
 - `BASELINE_DRIFT`：RC artifact/pin/CI 身分不可解釋地改變。
 - `SHARED_FILE_BUSY`：中央或 RC 目標檔有他人未提交改動。
 - `CURRENT_STATE_CONFLICT`：live evidence 與不可變架構決策衝突。
-- `NO_CANONICAL_591_STAGING_SECRET_CONTRACT`：只能取得 Production S591 secret 或需猜 source name。
+- `STAGING_SECRET_SOURCE_MISSING`：四個已核准的中央 Staging source names 任一為 MISSING，或 target ref 不是 JLSQ；不得改用 Production 值。
 - `SECRET_ROTATION_REQUIRED`：先前可能曝露的秘密尚未由使用者確認 rotation。
 - `STAGING_ENV_IDENTITY_MISMATCH`：Staging env 不是 JLSQ、含 Production ref、或 dry-run 不為 true。
 - `VPS_SCRIPT_DRIFT`：VPS script 有中央 main 沒有的變更。
@@ -593,9 +621,10 @@ K7 login-gate.ts 以寫死 email 控制測試按鈕顯示，僅 UI 用途但仍�
 另列本次新增已知缺陷：
 
 ```text
-K8 canonical 591-staging secret contract 尚待中央 owner 完成。
+K8 RESOLVED：既有中央 Staging env 已由 product-scoped helper 自動映射，不需新增 HUB contract；仍須維持 value-blind 與 process-scope 邊界。
 K9 central deploy main 尚未 remote-published；local source PASS 不等於 VPS 可用。
 K10 Windows PowerShell 5.1 測試環境缺 Get-FileHash，中央完整 suite 非全綠；需平台另案修測試 harness。
+K11 H3 env 寫入 helper 已完成並通過 CI，但尚未由使用者執行；VPS env 目前仍 missing。
 ```
 
 ## 18. 每一階段回報格式
@@ -643,12 +672,12 @@ GO_LIVE = YES/NO
 ROLLBACK_TARGET =
 ROLLBACK_PROOF = PASS/FAIL/NOT_RUN
 OPEN_HUMAN_GATES =
-K1_K10 = <逐項狀態>
+K1_K11 = <逐項狀態>
 HARD_STOPS =
 ```
 
 只有 `PRODUCTION_ACCEPTED=YES` 且 rollback proof PASS，才可輸出 `GO_LIVE=YES`。
 
-現在開始：先完整讀 §1 文件並唯讀重驗 Phase 0，確認 RC 含 `66cf9da` 與 `51bbb38`、中央與 VPS 狀態仍符合本快照；保留已完成的 WP-1A，不要重做。然後停在 H-S1，回報中央 owner 要核准／補齊的 canonical `591-staging` secret contract 與 rotation 狀態。不要從頭重做 H2、不要碰 Production。
+現在開始：先完整讀 §1 文件並唯讀重驗 Phase 0，確認 RC HEAD `2b32884d9675cf61e0d243e3f65911fecfc5682c`、artifact source `8532843816e80653b3a0c73414494fb4a722d783`、acceptance digest `sha256:ebd73efbdb664704cf28681abe90e1ec0b0d966214aefe42b32ab2d73d812ff3`、compose pin 與 exact CI 仍符合本快照；保留已完成的 WP-1A、WP-1B、WP-1C、H2 與 Phase 2，不要重做。接著停在 H-C0，請使用者審核並推送中央 deploy main 的 5 個 local commits；完成後唯讀確認 remote main，再處理 H-S1 rotation confirmation 與 H3。H3 只要求使用者執行 helper 命令，不要求手動提供任何 env 值；不要碰 Production。
 
 <!-- END OF 591 LUNA BUILD-TO-GO-LIVE EXECUTION PLAN -->
