@@ -68,21 +68,25 @@ PRODUCTION_PORT = 8890
 
 ```text
 BRANCH = codex/591-w6-rc-20260925
-HEAD = 7c3afc3f4454528c7a18df2af181277160d0dfe5
+HEAD = 51bbb38e3df23f65dbc4aa258ceac271710bfb09
 WORKTREE = CLEAN
 REMOTE_BRANCH = SAME HEAD
+VPS_PREREQ_FIX_COMMIT = 66cf9da6d10d961080f36fa0dcc59f8f3d7971fa
+VPS_PREREQ_FIX_CI = 36237687833 (success; image-scope false; arm64 image skipped)
+LATEST_RC_DOCS_COMMIT = 51bbb38e3df23f65dbc4aa258ceac271710bfb09
+LATEST_RC_DOCS_CI = 36237782880 (success; image-scope false; arm64 image skipped)
 SOURCE_COMMIT_FOR_ARTIFACT = 3d23aaecef70e0adb0310097313bb810521f9c46
 SOURCE_CI_RUN = 36099345595 (success)
 IMAGE = ghcr.io/tcp-git-313/ticenpi-591
 IMAGE_DIGEST = sha256:1b64a2f947b4aeeb45059221605f5fe92a5672cd98b6d98bcfb40efa3a045454
 PLATFORM = linux/arm64
 PIN_COMMIT = c595bf74e53fe192a97b1e166700ea193dbc012c
-LATEST_EXACT_CI_RUN = 36109019041 (success, HEAD 7c3afc3)
+LATEST_EXACT_CI_RUN = 36237782880 (success, HEAD 51bbb38)
 ```
 
 已完成：Production 58/58 source reconciliation、auth/JWKS、Commercial＋Central Seat gate、HTTP/WS gate、`/api/live`、`/api/ready`、runtime identity、cookie isolation、單一 immutable image、digest pin、exact-commit CI、中央 service registry、H2 fixture。
 
-尚未完成：Local Docker 實跑、Staging VPS env、中央腳本同步到 VPS、relay、DNS/tunnel、OAuth redirect、Staging deploy、rollback drill、真人 E2E、release evidence、Production 形式轉換與 go-live。
+尚未完成：canonical `591-staging` secret contract、Local Docker 實跑、Staging VPS env、中央腳本同步到 VPS、relay、DNS/tunnel、OAuth redirect、Staging deploy、rollback drill、真人 E2E、release evidence、Production 形式轉換與 go-live。
 
 ### 2.2 H2 fixture 已完成，不得重建
 
@@ -121,16 +125,20 @@ command = docker exec -w /app/591 <container> python critical_function_check.py
 
 已有跨平台 regression test `tests/test_critical_smoke_profiles.py`。驗證紀錄：該 test PASS、shell syntax PASS、591 manifest PASS。全中央測試為 `113 passed, 28 skipped, 2 failed`；兩個 fail 都是未改動的 Windows PowerShell 5.1 測試環境找不到 `Get-FileHash`，不可誤報成 591 smoke regression。
 
-中央 main 尚未 push；VPS 也尚未證明已含修復後的 `591-core`。source 修復不等於 runtime 修復。
+中央 main 尚未 push；VPS 也尚未含修復後的 `591-core`。source 修復不等於 runtime 修復。
+
+已接續完成 WP-1A：RC commit `66cf9da6d10d961080f36fa0dcc59f8f3d7971fa` 修正唯讀 VPS prereq transport，使用 LF 正規化的 SSH stdin，並輸出 remote `591-core` presence；測試 `25 passed`、PowerShell parse PASS、實際唯讀 SSH PASS。該 commit exact CI `36237687833` 成功。execution-log docs commit `51bbb38e3df23f65dbc4aa258ceac271710bfb09` 的 exact CI `36237782880` 也成功；兩者 image-scope=false、ARM64 build skipped，既有 digest 未變。
 
 ### 2.4 已知前置缺口
 
-1. `scripts/w6/591-staging-vps-prereqs.ps1` 直接把多行 script 當 ssh argument，使用者實跑時在 regex `(^|:)` 附近出現 remote bash syntax error；需改成經 stdin 執行 `bash -s --`，不得弱化任何檢查。
+1. **已修復 source**：`scripts/w6/591-staging-vps-prereqs.ps1` 以 LF-normalized process stdin 呼叫 SSH `bash -s --`，CI `36237687833` PASS；VPS 仍未更新此檔。
 2. `scripts/w6/Use-591StagingSecrets.ps1` 目前呼叫中央 loader `-Service 591`；該 service 是 Production `S591_*` contract，會得到錯誤 project ref。不得以 rename/copy Production 值繞過。
 3. 中央 loader 目前沒有經證明的 `591-staging` contract。必須由中央 secrets owner 提供 canonical 介面，至少輸出 Staging 的 `SUPABASE_URL`、publishable/anon key、service-role 相容名稱與 591 Staging 專用 Fernet key；來源名稱不可猜。
 4. Staging release root 與 env file 尚不存在；8891 最後一次唯讀檢查為 free。
 5. `.release-evidence\591` 尚不存在。
 6. 先前終端曾意外顯示中央 secret values。所有受影響的 service-role／DB／Fernet／R2 等秘密，在任何部署前必須由使用者完成 rotation；不得在 log、prompt、commit 或對話重現值。
+7. 最新只讀 VPS 狀態：release root/env missing、8891 free、forbidden refs absent；`/opt/ticenpi/591/current` 仍指向 `20260912-163944`。VPS `deploy.sh` hash 與 local central 一致；VPS `critical-smoke.sh` hash `84d62cb8e2e7d6653e654854fb3c024ed8090bb4ad6928aab7169fd69f55a1bd`，不等於修復後 central file，且 remote grep 確認 `591-core=MISSING`。未做 VPS 寫入。
+8. 中央 secret-loader worktree `F:\HUB` 在 commit `33d5da7` 有大量未提交修改；`scripts/load-ticenpi-secrets.ps1` 已修改，`scripts/sync-secrets.ps1` 未追蹤。tracked/current loader 與 sync inventory 都沒有 `591-staging` service contract。不得改動或 stage 這些共享 WIP。
 
 ## 3. 不可變架構決策
 
@@ -220,26 +228,28 @@ PHASE_0 = PASS / HARD_STOP
 
 ## 7. Phase 1 — 收斂剩餘 source 與 secret contract
 
-### WP-1A：修復 VPS read-only prereq transport
+### WP-1A：修復 VPS read-only prereq transport — DONE
 
-只改：
+已在 RC 完成：`66cf9da6d10d961080f36fa0dcc59f8f3d7971fa`；精確 CI `36237687833 = success`。驗證包含 PowerShell parser、測試 `25 passed`、實際唯讀 SSH 回傳 root/env presence、port、project-ref/forbidden-ref 與 central `591-core` 狀態。若 Phase 0 確認此 commit 已在目前 RC，直接保留，不要重做。
+
+本工作包已變更：
 
 - `scripts/w6/591-staging-vps-prereqs.ps1`
 - `591/docs/W6-591-EXECUTION-LOG.md`
 
-把 remote script 經 stdin 傳給 `ssh ... bash -s --`，避免 OpenSSH argument 重組吃掉 regex 引號。保留 read-only 與所有 fail-closed 檢查；新增可離線測試的 command-construction seam 或最小測試，證明 regex 不再被本機 shell 展開。
+remote script 以 LF 正規化後直接寫入 SSH process stdin，再執行 `bash -s --`，避免 OpenSSH argument 重組及 Windows CRLF 破壞腳本。保留 read-only 與所有 fail-closed 檢查；測試涵蓋 stdin transport 和必要的檢查標記。
 
-驗證：PowerShell parse、mock transport test、實際唯讀 SSH。若 actual script 回報 root/env missing 但 exit 0，這是正確的 prereq 結果；只有 transport/forbidden ref 才是 script failure。
+驗證通過：PowerShell parse、unit suite `25 passed`、實際唯讀 SSH。release root/env missing、8891 free、forbidden ref absent、remote `591-core` missing 是目前基礎設施狀態，屬 H3 前置，不代表 transport failure。
 
 commit：
 
 ```text
-fix(591): make staging VPS prereq transport shell-safe
+fix(591): make staging VPS prereq transport shell-safe (66cf9da)
 ```
 
 ### WP-1B：建立 canonical 591 Staging secret contract
 
-先唯讀確認中央 loader 是否已出現正式 `591-staging`。若沒有，停在 H-S1；不得自己拼接 `sign-staging`、`orc-staging`、`S591_*`，也不得把 Production Fernet 當 Staging 值。
+先唯讀確認中央 loader 是否已出現正式 `591-staging`。截至 2026-09-26，沒有此 contract，且 HUB loader/sync 目標檔有他人未提交改動；停在 H-S1。中央 secrets owner 必須先完成或明確認領這些 WIP，審定 Staging source names 與 rotation 狀態，再提供可核對的正式介面。不得自行拼接 `sign-staging`、`orc-staging`、`S591_*`，也不得把 Production Fernet 當 Staging 值。
 
 contract 必須具備：
 
@@ -639,6 +649,6 @@ HARD_STOPS =
 
 只有 `PRODUCTION_ACCEPTED=YES` 且 rollback proof PASS，才可輸出 `GO_LIVE=YES`。
 
-現在開始：先完整讀 §1 文件，執行 Phase 0，只回報 KEEP／ADJUST／CONFLICT 與實際值；若沒有 CONFLICT，再依序完成 Phase 1。不要從頭重做 H2、不要碰 Production。
+現在開始：先完整讀 §1 文件並唯讀重驗 Phase 0，確認 RC 含 `66cf9da` 與 `51bbb38`、中央與 VPS 狀態仍符合本快照；保留已完成的 WP-1A，不要重做。然後停在 H-S1，回報中央 owner 要核准／補齊的 canonical `591-staging` secret contract 與 rotation 狀態。不要從頭重做 H2、不要碰 Production。
 
 <!-- END OF 591 LUNA BUILD-TO-GO-LIVE EXECUTION PLAN -->
