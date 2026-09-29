@@ -1,235 +1,645 @@
-# Legacy Production Baseline First — Universal Workflow on Next Release
+# Legacy Production Baseline — Per-Product Production Promotion
 
-## 目標
+## 使用方式
 
-本輪只處理一件事：
+**一個產品、一個 IDE 任務、一個 release evidence chain。**
 
-目前已經完成 Staging 驗證的版本，先建立為 Production baseline。
+不要把 Post / DM / OCR / Sign / 591 全部塞進同一個執行任務。
 
-本輪不要同步導入新的 Universal Workflow、Product Onboarding V2、Deployment Identity V2 或其他跨平台重構。
+建議順序：
 
-下一次真的有新的本機功能版本時，再把「新版本 + 新通用 Workflow」一起導入。
+```text
+DM
+→ Post
+→ OCR
+→ Sign
+→ 591
+```
 
-## 路徑
+其中：
 
-Workspace:
-F:\00-Ticenpi-SaaS
+- DM / Post / OCR：優先處理，若目前是 Docker → Docker 且 Staging 已 ACCEPTED，可走 same-artifact promotion。
+- Sign / 591：若仍存在 Staging Docker → Production systemd、不可重現 package、Production runtime 不等價等 blocker，必須獨立停下，不得因為前面產品成功就一起硬上。
 
-Deploy repo:
-F:\00-Ticenpi-SaaS\deploy
+每開一個 IDE 任務，只處理一個 `TARGET_PRODUCT`。
 
-System docs:
-F:\00-Ticenpi-SaaS\deploy\docs\system\
+---
 
-Future workflow:
-F:\00-Ticenpi-SaaS\deploy\docs\system\new-workflow.md
+# 0. 本輪輸入
 
-Release evidence:
-F:\00-Ticenpi-SaaS\.release-evidence\
+開始前先把下面兩個值改成該產品：
 
-## 本輪原則
+```text
+TARGET_PRODUCT = <dm | post | ocr | sign | 591>
+PRODUCT_REPO = <實際 repo path>
+```
 
-THIS RELEASE = LEGACY_PRODUCTION_BASELINE
+目前常用路徑：
 
-NEXT LOCAL RELEASE = FIRST_UNIVERSAL_WORKFLOW_GOVERNED_RELEASE
+```text
+dm   = F:\00-Ticenpi-SaaS\TicenpiDM
+post = F:\00-Ticenpi-SaaS\TicenpiPost
+ocr  = F:\00-Ticenpi-SaaS\TicenpiLetter
+```
 
-本輪不要重做：
-- Product / Service Phase 1
-- Product Registry
-- Central Seat 架構
-- Commercial Core
-- Deployment Identity 正式重構
+Sign / 591 必須由 IDE 先自行確認實際 repo path，不要猜。
+
+共用：
+
+```text
+WORKSPACE = F:\00-Ticenpi-SaaS
+DEPLOY_REPO = F:\00-Ticenpi-SaaS\deploy
+SYSTEM_DOCS = F:\00-Ticenpi-SaaS\deploy\docs\system
+RELEASE_EVIDENCE = F:\00-Ticenpi-SaaS\.release-evidence
+FUTURE_WORKFLOW = F:\00-Ticenpi-SaaS\deploy\docs\system\new-workflow.md
+```
+
+---
+
+# 1. 任務目標
+
+本輪只做：
+
+```text
+CURRENT STAGING ACCEPTED RELEASE
+→ PRODUCTION BASELINE
+```
+
+本輪不要同步導入：
+
 - Universal Workflow migration
-- repo cleanup
-- unrelated technical debt
+- Deployment Identity V2 正式重構
+- Product Onboarding V2
+- Product Registry
+- Product / Service architecture redesign
+- Central Seat redesign
+- Commercial Core redesign
+- unrelated refactor
+- unrelated cleanup
 
-## Phase 1 — 找出目前可升 Production 的 exact candidate
+這些全部延後到下一個本機新版本。
 
-自行確認：
-- TARGET_PRODUCT
-- repo / branch / source commit
-- Staging release status
-- accepted release evidence
-- immutable artifact identity
-- Production target
-- rollback target
-- delivery model
+本輪成功後：
 
-輸出：
+```text
+RELEASE_MODE = LEGACY_PRODUCTION_BASELINE
+WORKFLOW_MIGRATION_DEFERRED = YES
+NEXT_LOCAL_RELEASE_REQUIRES_UNIVERSAL_WORKFLOW_MIGRATION = YES
+```
 
+---
+
+# 2. 先做 Current Product Reconciliation
+
+只針對 `TARGET_PRODUCT`。
+
+確認：
+
+```text
 TARGET_PRODUCT =
+PRODUCT_REPO =
+CURRENT_BRANCH =
+CURRENT_HEAD =
+DIRTY_STATE =
 DELIVERY_MODEL =
-STAGING_ACCEPTED =
 STAGING_RELEASE_ID =
-SOURCE_COMMIT =
-ACCEPTED_ARTIFACT =
-PRODUCTION_CURRENT_RELEASE =
+STAGING_STATUS =
+STAGING_SOURCE_COMMIT =
+STAGING_BACKEND_DIGEST =
+STAGING_FRONTEND_DIGEST =
+STAGING_DEPLOY_CONFIG_COMMIT =
+STAGING_RUNTIME_IDENTITY_VERIFIED =
+STAGING_HEALTH_VERIFIED =
+STAGING_AUTH_VERIFIED =
+STAGING_COMMERCIAL_VERIFIED =
+STAGING_E2E_VERIFIED =
+CURRENT_PRODUCTION_RELEASE =
+CURRENT_PRODUCTION_SOURCE =
+CURRENT_PRODUCTION_ARTIFACT =
 ROLLBACK_TARGET =
+```
 
-若 Staging 尚未 ACCEPTED、artifact/source 不明或 rollback 不明，停止，不要硬上。
+資料來源優先順序：
 
-## Phase 2 — 保留既有安全 gate
+1. `.release-evidence\<product>\accepted-staging.json`
+2. `.release-evidence\<product>\history\*.json`
+3. product repo current source/config
+4. deploy repo / services.yaml
+5. Production runtime / health / ready
+6. existing handoff only as secondary evidence
 
-Production promotion 前仍須確認：
-- source identity
-- immutable artifact
-- Production environment
-- Production Supabase / DB target
-- required runtime secrets/config
-- rollback
-- health prerequisites
-- auth
-- entitlement / Central Seat（適用時）
+若不同來源衝突：
 
-Docker → Docker 必須沿用 Staging ACCEPTED 的同一 immutable artifact，不得 Production rebuild。
+```text
+SOURCE_CONFLICT = YES
+```
 
-若產品仍有 Staging Docker → Production systemd 且無可重現 package/equivalence proof，標記 BLOCKED；不要把這類 blocker 當成 Workflow 問題略過。
+停止，不要自行挑一份當真。
 
-## Phase 3 — TICENPI 五鍵只視為目前已知 legacy rollout 問題
+---
 
-相關欄位：
+# 3. Staging Eligibility Gate
 
+只有以下全部成立，才可以繼續：
+
+```text
+STAGING_ACCEPTED = YES
+STAGING_RUNTIME_IDENTITY_VERIFIED = YES
+STAGING_HEALTH_VERIFIED = YES
+STAGING_AUTH_VERIFIED = YES
+STAGING_COMMERCIAL_VERIFIED = YES   # 適用時
+STAGING_E2E_VERIFIED = YES
+SOURCE_IDENTITY_KNOWN = YES
+ARTIFACT_IDENTITY_KNOWN = YES
+ROLLBACK_TARGET_KNOWN = YES
+```
+
+如果沒有 accepted-staging evidence：
+
+```text
+PROMOTION_BLOCKED = NO_ACCEPTED_STAGING
+```
+
+停止。
+
+---
+
+# 4. Delivery Model Gate
+
+先判定：
+
+```text
+DELIVERY_MODEL =
+DOCKER_TO_DOCKER
+DOCKER_TO_SYSTEMD
+SYSTEMD
+STATIC
+OTHER
+```
+
+## 4.1 Docker → Docker
+
+要求：
+
+```text
+PRODUCTION_ARTIFACT
+=
+STAGING_ACCEPTED_ARTIFACT
+```
+
+Production 不得 rebuild。
+
+不得從本機 dirty tree 建新 image。
+
+不得用 mutable tag 代替 accepted digest。
+
+## 4.2 Docker → systemd / systemd
+
+必須證明：
+
+- source commit 相同
+- package 可重現
+- package hash 可驗
+- dependency lock 等價
+- Production package 已被 release evidence 綁定
+
+如果不能證明：
+
+```text
+PROMOTION_BLOCKED = ARTIFACT_EQUIVALENCE_NOT_PROVEN
+```
+
+停止。
+
+不要把這類 blocker 當成 Deployment Identity 五鍵問題。
+
+---
+
+# 5. Production Config Reconciliation
+
+只針對目前產品。
+
+確認 Production config：
+
+```text
+PRODUCTION_ENVIRONMENT = production
+PRODUCTION_SUPABASE_TARGET =
+PRODUCTION_DATABASE_TARGET =
+PRODUCTION_DOMAIN =
+PRODUCTION_PORT =
+PRODUCTION_RUNTIME_MODE =
+PRODUCTION_SEAT_POLICY =
+PRODUCTION_COMPOSE_OR_UNIT =
+```
+
+若是 Docker same-artifact promotion，Production compose 必須 pin accepted digest。
+
+如果 Production compose 還 pin 舊 digest：
+
+不要 rebuild image。
+
+只允許建立「Production deploy-config commit」更新：
+
+```text
+old digest
+→ accepted Staging digest
+```
+
+若其中包含 source identity literal，也必須與 accepted source commit 一致。
+
+這種 config-only commit 不得改產品功能。
+
+---
+
+# 6. Legacy Deployment Identity Compatibility
+
+目前已知五個欄位：
+
+```text
 TICENPI_ENVIRONMENT
 TICENPI_RELEASE_ID
 TICENPI_COMMIT_SHA
 TICENPI_SUPABASE_PROJECT_REF
 TICENPI_DATABASE_TARGET
+```
 
-目前已知方向：
+目前問題是：
 
-五鍵屬 Deployment Identity；
-「五鍵一律永久存在 shared/.env / requiredEnv」不是未來正確模型。
+某些舊 manifest / preflight 把這些 Deployment Identity metadata 當成 `requiredEnv`，要求永久存在 shared env。
 
-本輪不要正式重構這套模型，也不要為了讓 validator 通過就永久補五個值。
+本輪不要做正式 Deployment Identity V2 migration。
 
-如果 Production preflight 唯一阻塞就是這個 legacy presence rule：
+本輪也禁止：
 
-先證明等價 identity 已可由既有 authoritative evidence 確定：
-- environment ← Production target
-- source commit ← Staging ACCEPTED evidence
-- artifact ← Staging ACCEPTED artifact
-- Supabase target ← canonical Production config
-- DB target ← canonical Production DB config
-- release identity ← existing release/promote tooling
+```text
+為了過 preflight
+把五鍵永久人工寫進 shared/.env
+```
 
-若其中任何一項仍無法唯一判定，停止。
+如果這五鍵是唯一 blocker：
 
-若現有 tooling 已有安全的 release-scoped / deploy-time identity injection 或 compatibility path，可沿用既有能力；不要新增永久第二份 source of truth。
+先確認等價 identity 可由 authoritative source 唯一得到：
 
-如果現有 tooling 沒有安全路徑，不要直接關掉整個 preflight；只輸出最小 compatibility change 與驗證方式，等使用者確認後再 mutation。
+```text
+environment
+← Production deploy target
 
-## Phase 4 — Production promotion
+source commit
+← accepted-staging source_commit
 
-當且僅當：
+artifact
+← accepted-staging backend/frontend digest
 
+Supabase project
+← canonical Production SUPABASE_URL / Production config
+
+database target
+← canonical Production database policy/config
+
+release id
+← existing release/promote tooling
+```
+
+如果任何一項無法唯一判定：
+
+```text
+LEGACY_IDENTITY_COMPATIBILITY = BLOCKED
+```
+
+停止。
+
+如果現有 tooling 已有安全的 release-scoped / deploy-time injection path，可以使用。
+
+如果沒有：
+
+不要整個關掉 preflight。
+
+先輸出：
+
+```text
+TEMP_COMPATIBILITY_CHANGE =
+FILES =
+EXACT_BEHAVIOR =
+WHY_SAFE =
+TEST =
+ROLLBACK =
+```
+
+等待使用者確認後才修改。
+
+---
+
+# 7. Production Preflight
+
+執行目前 repo 已存在的 canonical Production preflight。
+
+必須保留：
+
+- source identity
+- accepted artifact
+- Production target
+- Supabase target
+- DB target
+- required static secrets/config
+- rollback
+- domain/port
+- auth prerequisites
+- commercial / Seat prerequisites
+- health prerequisites
+
+只要還有五鍵以外 blocker：
+
+```text
+OTHER_BLOCKERS != NONE
+```
+
+停止，不得一起 bypass。
+
+輸出：
+
+```text
+PRODUCTION_PREFLIGHT =
+LEGACY_IDENTITY_RULE_BLOCKER =
+OTHER_BLOCKERS =
+READY_FOR_PRODUCTION_PROMOTION =
+```
+
+---
+
+# 8. Production Mutation Boundary
+
+如果：
+
+```text
 STAGING_ACCEPTED = YES
 SOURCE_IDENTITY_KNOWN = YES
 ARTIFACT_IDENTITY_KNOWN = YES
-PRODUCTION_TARGET_KNOWN = YES
 ROLLBACK_READY = YES
+PRODUCTION_PREFLIGHT = PASS
 OTHER_BLOCKERS = NONE
+```
 
-才進入 Production promotion。
+則輸出：
 
-使用目前 repo 已驗證的 canonical promote/deploy path，不自行發明第二套部署流程。
-
-在真正 Production mutation 前，輸出：
-
+```text
 READY_FOR_PRODUCTION_PROMOTION = YES
 EXACT_COMMAND =
-EXPECTED_RELEASE =
+EXPECTED_SOURCE_COMMIT =
 EXPECTED_ARTIFACT =
+EXPECTED_PRODUCTION_TARGET =
 ROLLBACK_TARGET =
+```
 
-等待使用者確認後執行。
+**到這裡先停止。**
 
-## Phase 5 — Production 驗證
+Production mutation 必須等使用者看到 exact command 後明確確認。
 
-完成後至少驗：
-- runtime environment = production
-- source identity 正確
-- artifact identity 正確
-- Production Supabase / DB target 正確
-- health / ready
-- auth deny/allow
-- entitlement / Seat（適用時）
-- 該產品最小核心 canary
+---
 
-DEPLOYED != ACCEPTED。
+# 9. 使用者確認後才執行 Production
 
-只有 mandatory Production canary 全部 PASS 後：
+確認後：
 
+使用現有 canonical promote/deploy path。
+
+Docker → Docker 優先：
+
+```powershell
+.\promote.ps1 <product> production
+```
+
+或 repo 當前已驗證的等價 canonical command。
+
+禁止自行建立第二套 Production deploy script。
+
+---
+
+# 10. Production Runtime Verification
+
+部署完成後至少驗：
+
+```text
+RUNNING_ENVIRONMENT = production
+RUNNING_SOURCE_COMMIT = expected
+RUNNING_ARTIFACT = accepted artifact
+RUNNING_SUPABASE_TARGET = expected Production
+RUNNING_DATABASE_TARGET = expected Production
+RUNNING_RELEASE_ID = traceable
+```
+
+接著：
+
+## Health
+
+- health
+- ready
+
+## Auth
+
+- no token → deny
+- invalid token → deny
+- real Production login/JWT → expected allow
+
+## Commercial / Seat
+
+適用時：
+
+- entitled / assigned → allow
+- unauthorized / unassigned → deny
+
+不得用 Production test bypass 取代真人驗證。
+
+## Core Canary
+
+跑該產品最小真實核心流程。
+
+---
+
+# 11. Production Acceptance
+
+```text
+DEPLOYED != ACCEPTED
+```
+
+只有：
+
+- runtime identity PASS
+- health PASS
+- auth PASS
+- commercial PASS（適用時）
+- core canary PASS
+
+才能：
+
+```text
 PRODUCTION_ACCEPTED = YES
 GO_LIVE = YES
+```
 
-## Phase 6 — Evidence
+若需要真人登入但目前無法自動完成：
 
-記錄：
+```text
+PRODUCTION_DEPLOYED = YES
+PRODUCTION_ACCEPTED = NO
+HUMAN_CANARY_REQUIRED = YES
+```
 
+不要假裝 GO_LIVE。
+
+---
+
+# 12. Evidence
+
+完成後記錄：
+
+```text
+TARGET_PRODUCT =
 RELEASE_MODE = LEGACY_PRODUCTION_BASELINE
 WORKFLOW_MIGRATION_DEFERRED = YES
-SOURCE_COMMIT =
-ARTIFACT_ID =
 PROMOTED_FROM_STAGING_RELEASE_ID =
+SOURCE_COMMIT =
+BACKEND_DIGEST =
+FRONTEND_DIGEST =
 PRODUCTION_RELEASE_ID =
 RUNTIME_IDENTITY_VERIFIED =
 HEALTH_VERIFIED =
 AUTH_VERIFIED =
 COMMERCIAL_VERIFIED =
 E2E_VERIFIED =
-ROLLBACK_RELEASE_ID =
-
-如果本輪使用任何 legacy compatibility mechanism，要明確記錄 scope；不要把它寫成永久標準。
-
-## Phase 7 — 下一個本機新版本的強制 follow-up
-
-成功建立 Production baseline 後留下：
-
-NEXT_LOCAL_RELEASE_REQUIRES_UNIVERSAL_WORKFLOW_MIGRATION = YES
-
-下一個本機版本開始時先讀：
-
-F:\00-Ticenpi-SaaS\deploy\docs\system\new-workflow.md
-
-並在下一個 release candidate 前完成正式 reconciliation：
-
-- Deployment Identity
-- requiredEnv vs deploy-time metadata
-- Product Onboarding V2（適用時）
-- Product / Service registry alignment（若已核准）
-- source/runtime/evidence reconciliation
-
-之後才走：
-
-Local
-→ CI
-→ immutable artifact
-→ Staging
-→ ACCEPTED
-→ Production
-
-## 最後輸出
-
-TARGET_PRODUCT =
-DELIVERY_MODEL =
-STAGING_ACCEPTED =
-SOURCE_COMMIT =
-ACCEPTED_ARTIFACT =
-PRODUCTION_PREFLIGHT =
-LEGACY_IDENTITY_RULE_BLOCKER =
-OTHER_BLOCKERS =
-READY_FOR_PRODUCTION_PROMOTION =
-PRODUCTION_DEPLOYED =
-RUNTIME_IDENTITY_VERIFIED =
-HEALTH_VERIFIED =
-AUTH_VERIFIED =
-COMMERCIAL_VERIFIED =
-PRODUCTION_CANARY =
 PRODUCTION_ACCEPTED =
-GO_LIVE =
-RELEASE_MODE = LEGACY_PRODUCTION_BASELINE
-WORKFLOW_MIGRATION_DEFERRED = YES
+ROLLBACK_RELEASE_ID =
+LEGACY_COMPATIBILITY_USED =
+LEGACY_COMPATIBILITY_SCOPE =
+```
+
+Evidence 存在目前 release evidence convention 下。
+
+不要覆寫 accepted-staging evidence。
+
+---
+
+# 13. 下一個本機新版本
+
+本輪 Production baseline 成功後，留下：
+
+```text
 NEXT_LOCAL_RELEASE_REQUIRES_UNIVERSAL_WORKFLOW_MIGRATION = YES
+```
+
+下一次有本機新版本時：
+
+先讀：
+
+```text
+F:\00-Ticenpi-SaaS\deploy\docs\system\new-workflow.md
+```
+
+再執行已核准的 Deployment Identity / Workflow migration。
+
+下一版才正式走：
+
+```text
+Local
+→ Local runtime
+→ Tests
+→ CI
+→ Immutable Artifact
+→ Staging
+→ Runtime Identity
+→ Auth / Commercial / E2E
+→ STAGING ACCEPTED
+→ Production Preflight
+→ Same Artifact Promotion
+→ Canary
+→ PRODUCTION ACCEPTED
+```
+
+---
+
+# 14. Scope Guard
+
+本輪只處理 `TARGET_PRODUCT`。
+
+不要：
+
+- 順手處理其他產品
+- 順手 merge Universal Workflow workstream
+- 順手 merge Product Registry
+- 順手重構 Central Seat
+- 順手修 unrelated repo
+- 順手整理所有 manifests
+- 順手把 Legacy compatibility 變永久 architecture
+
+若發現另一產品問題：
+
+只輸出：
+
+```text
+OUT_OF_SCOPE_FINDING =
+AFFECTED_PRODUCT =
+FOLLOWUP_REQUIRED = YES
+```
+
+不要切換產品繼續做。
+
+---
+
+# 15. 最終輸出
+
+```text
+TARGET_PRODUCT =
+
+PRODUCT_REPO =
+
+DELIVERY_MODEL =
+
+STAGING_ACCEPTED =
+
+STAGING_RELEASE_ID =
+
+SOURCE_COMMIT =
+
+ACCEPTED_ARTIFACT =
+
+PRODUCTION_CONFIG_STATUS =
+
+PRODUCTION_PREFLIGHT =
+
+LEGACY_IDENTITY_RULE_BLOCKER =
+
+LEGACY_COMPATIBILITY_USED =
+
+OTHER_BLOCKERS =
+
+READY_FOR_PRODUCTION_PROMOTION =
+
+EXACT_COMMAND =
+
+PRODUCTION_DEPLOYED =
+
+RUNTIME_IDENTITY_VERIFIED =
+
+HEALTH_VERIFIED =
+
+AUTH_VERIFIED =
+
+COMMERCIAL_VERIFIED =
+
+HUMAN_CANARY_REQUIRED =
+
+PRODUCTION_ACCEPTED =
+
+GO_LIVE =
+
+RELEASE_MODE = LEGACY_PRODUCTION_BASELINE
+
+WORKFLOW_MIGRATION_DEFERRED = YES
+
+NEXT_LOCAL_RELEASE_REQUIRES_UNIVERSAL_WORKFLOW_MIGRATION = YES
+
 EVIDENCE_PATH =
+
 ROLLBACK_TARGET =
+
 EXACT_NEXT_ACTION =
+```
