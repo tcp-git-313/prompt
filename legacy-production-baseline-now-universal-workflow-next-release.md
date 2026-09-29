@@ -379,7 +379,7 @@ PRODUCTION_PREFLIGHT = PASS
 OTHER_BLOCKERS = NONE
 ```
 
-則輸出：
+而且沒有新的破壞性或非預期變更，則：
 
 ```text
 READY_FOR_PRODUCTION_PROMOTION = YES
@@ -390,15 +390,46 @@ EXPECTED_PRODUCTION_TARGET =
 ROLLBACK_TARGET =
 ```
 
-**到這裡先停止。**
+**不要停下來再次詢問。直接執行 Production promotion。**
 
-Production mutation 必須等使用者看到 exact command 後明確確認。
+本輪使用者已授權：
+
+```text
+preflight 全部 PASS
++ artifact / target / rollback 已確認
++ 沒有新的破壞性操作
+→ 直接 Production promotion
+```
+
+只有遇到以下任一項，才 STOP 等人工確認：
+
+- DB migration
+- schema destructive change
+- secret 新增／修改／輪替
+- DNS 變更
+- port 變更
+- runtime architecture 變更
+- 非預期 source 修改
+- 非預期 config 修改
+- 任何不在目前 accepted Staging release / 既有 Production promotion 範圍內的 mutation
+
+如果只是既有 release promotion 所需、且可由 accepted Staging evidence 唯一決定的正常 config-only pin 更新，例如：
+
+```text
+Production compose digest
+→ accepted Staging digest
+
+Production source identity literal
+→ accepted Staging source_commit
+```
+
+這屬於本輪預期 promotion config reconciliation，不需再次詢問；但必須先通過既有測試／CI／preflight，不得夾帶功能修改。
 
 ---
 
-# 9. 使用者確認後才執行 Production
+# 9. 直接執行 Production
 
-確認後：
+符合 §8 條件後：
 
 使用現有 canonical promote/deploy path。
 
@@ -411,6 +442,8 @@ Docker → Docker 優先：
 或 repo 當前已驗證的等價 canonical command。
 
 禁止自行建立第二套 Production deploy script。
+
+執行後不要停在 DEPLOYED；繼續完成 §10 Runtime Verification 與 §11 Production Acceptance。
 
 ---
 
