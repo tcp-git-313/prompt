@@ -51,7 +51,6 @@ WORKSPACE = F:\00-Ticenpi-SaaS
 DEPLOY_REPO = F:\00-Ticenpi-SaaS\deploy
 SYSTEM_DOCS = F:\00-Ticenpi-SaaS\deploy\docs\system
 RELEASE_EVIDENCE = F:\00-Ticenpi-SaaS\.release-evidence
-FUTURE_WORKFLOW = F:\00-Ticenpi-SaaS\deploy\docs\system\new-workflow.md
 ```
 
 ---
@@ -553,21 +552,23 @@ Evidence 存在目前 release evidence convention 下。
 
 # 13. 下一個本機新版本
 
-本輪 Production baseline 成功後，留下：
+本輪 Production baseline 成功後，只留下：
 
 ```text
 NEXT_LOCAL_RELEASE_REQUIRES_UNIVERSAL_WORKFLOW_MIGRATION = YES
 ```
 
-下一次有本機新版本時：
+**本輪不要讀、不要套用、不要依賴 `new-workflow.md`。**
 
-先讀：
+該文件目前仍屬未來 Workflow 草案／待完成規範，不是本輪 Production baseline 的執行依據。
+
+只有等未來真的出現新的本機版本，而且新的 Universal Workflow 已完成並獲准後，才在下一個 release 任務中讀取並套用：
 
 ```text
 F:\00-Ticenpi-SaaS\deploy\docs\system\new-workflow.md
 ```
 
-再執行已核准的 Deployment Identity / Workflow migration。
+屆時再執行已核准的 Deployment Identity / Workflow migration。
 
 下一版才正式走：
 
