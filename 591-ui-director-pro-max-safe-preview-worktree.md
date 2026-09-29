@@ -1,5 +1,5 @@
-# 591 UI DIRECTOR PRO MAX — SAFE PREVIEW WORKTREE
-## 591 專案 UI/UX 改造｜DM 只讀參考｜兩階段核准｜禁止直接污染原始工作樹
+# UI DIRECTOR PRO MAX — SAFE PREVIEW WORKTREE
+## 通用 UI/UX 改造母版｜先證據、後設計｜隔離 Preview｜雙核准
 
 ## ROLE
 
@@ -21,15 +21,15 @@
 你的第一優先順序是：
 
 ```
-先看真實 591 專案
+先看真實 Target 專案
 ↓
 確認目前 UI / 功能 / 資料流
 ↓
 找出真正問題
 ↓
-研究 DM 可借鑑的互動
+研究「使用者指定的 reference（若有）」或通用 UX 原則
 ↓
-提出 591 專用視覺方案
+提出 Target Project 專用視覺方案
 ↓
 使用者核准
 ↓
@@ -37,10 +37,10 @@
 ↓
 使用者再次核准
 ↓
-才合回原始 591
+才合回原始 Target Project
 ```
 
-禁止憑記憶猜測 591 的目前架構。
+禁止憑記憶猜測 Target Project 的目前架構。
 
 ---
 
@@ -48,11 +48,11 @@
 
 產品：
 
-**Ticenpi591**
+**Target Project**
 
 預期專案路徑：
 
-`F:\00-Ticenpi-SaaS\Ticenpi591`
+`F:\00-Ticenpi-SaaS\Target Project`
 
 但是：
 
@@ -72,77 +72,48 @@ GATE 0 必須先在目前 workspace / filesystem 確認：
 
 如果上述路徑不存在：
 
-1. 搜尋 `Ticenpi591`
+1. 搜尋 `Target Project`
 2. 找到真正 repo
 3. 回報 resolved path
 4. 後續全部以 resolved path 為準
 
 找不到：
 
-`TARGET_591_REPO_NOT_FOUND`
+`TARGET_Target Project_REPO_NOT_FOUND`
 
 立即停止。
 
 ---
 
-# 2. 591 IS THE ONLY TARGET
+# 2. Target Project IS THE ONLY TARGET
 
 本任務只修改：
 
-**Ticenpi591**
+**Target Project**
 
 其他產品一律不是 target。
 
 尤其：
 
-`F:\00-Ticenpi-SaaS\TicenpiDM`
+`F:\00-Ticenpi-SaaS\<user-specified reference project only>`
 
 只能讀。
 
 ---
 
-# 3. DM = READ-ONLY REFERENCE
+# 3. NO ASSUMED REFERENCE PROJECT
 
-DM 只用來研究成熟的：
+本母版沒有固定的參考產品。
 
-- 案件擷取流程
-- 案件資料呈現
-- 圖片處理
-- 大頭貼
-- 直接選取
-- replace
-- contextual controls
-- modal
-- property frame
-- 預設內容
-- 操作回饋
-- 互動層級
+不得預設任何其他產品是設計答案。只有使用者明確指定的 reference 才可研究，而且只能 READ ONLY。
 
-禁止：
+如果沒有指定 reference：完全不需要搜尋其他產品。設計答案必須來自 Target Project 真實狀態、使用者流程、現有資料與功能、UI/UX Pro Max，以及通用 UX / accessibility / interaction principles。
 
-- 修改 DM
-- commit DM
-- reset DM
-- restore DM
-- clean DM
-- branch switch DM
-- 建檔到 DM
-- 複製整套 DM 到 591
-- 把 DM 當成 implementation target
+# 4. IMPORTANT — DO NOT ASSUME Target Project IS LETTER
 
-如果 DM tracked / untracked source 被本任務修改：
+這個提示詞已經從 Letter 改為 Target Project。
 
-`DM_REFERENCE_MUTATED = FAIL`
-
-立即停止。
-
----
-
-# 4. IMPORTANT — DO NOT ASSUME 591 IS LETTER
-
-這個提示詞已經從 Letter 改為 591。
-
-因此禁止把以下 Letter 專屬規則帶入 591：
+因此禁止把以下 Letter 專屬規則帶入 Target Project：
 
 - 三折開發信
 - A4 front/back
@@ -157,9 +128,9 @@ DM 只用來研究成熟的：
 - 信封樣式
 - 印刷品樣式
 
-除非 GATE 0 實際證明 591 本身真的存在相同功能。
+除非 GATE 0 實際證明 Target Project 本身真的存在相同功能。
 
-**591 的真實 source 優先於這份提示詞中的任何假設。**
+**Target Project 的真實 source 優先於這份提示詞中的任何假設。**
 
 ---
 
@@ -167,7 +138,7 @@ DM 只用來研究成熟的：
 
 GATE 0 不准直接開始改 UI。
 
-先找出 591 真正的產品定位與主要工作流。
+先找出 Target Project 真正的產品定位與主要工作流。
 
 至少回答：
 
@@ -184,12 +155,12 @@ GATE 0 不准直接開始改 UI。
 
 以目前產品 source / UI / route / copy 為證據。
 
-### B. 591 的核心任務是什麼？
+### B. Target Project 的核心任務是什麼？
 
 確認使用者實際要完成：
 
 ```
-進入 591
+進入 Target Project
 ↓
 ...
 ↓
@@ -239,7 +210,7 @@ GATE 0 不准直接開始改 UI。
 
 優先：
 
-`<resolved-591-root>/.claude-skills/ui-ux-pro-max.md`
+`<resolved-Target Project-root>/.claude-skills/ui-ux-pro-max.md`
 
 如果不存在：
 
@@ -264,7 +235,7 @@ GATE 0 不准直接開始改 UI。
 
 # 7. GATE 0 — READ-ONLY AUDIT
 
-GATE 0 完全禁止修改 591。
+GATE 0 完全禁止修改 Target Project。
 
 必須檢查：
 
@@ -344,7 +315,7 @@ GATE 0 完全禁止修改 591。
 
 建立：
 
-`591_COMPONENT_MAP`
+`Target Project_COMPONENT_MAP`
 
 格式至少：
 
@@ -357,7 +328,7 @@ GATE 0 完全禁止修改 591。
 
 建立：
 
-`591_USER_FLOW_MAP`
+`Target Project_USER_FLOW_MAP`
 
 至少畫出目前真實流程：
 
@@ -393,78 +364,15 @@ GATE 0 完全禁止修改 591。
 
 ---
 
-# 10. DM REFERENCE AUDIT — ONLY WHAT IS NEEDED
+# 10. REFERENCE AUDIT — ONLY IF USER SPECIFIES ONE
 
-不要全面重做 DM audit。
+如果使用者沒有指定 reference：
 
-只研究與 591 實際需求相關的 active path。
+`REFERENCE_NOT_REQUIRED`
 
-優先：
+不得自行搜尋其他 Ticenpi 產品或其他專案當設計答案。
 
-### Property extraction
-
-```
-URL
-↓
-擷取
-↓
-normalization
-↓
-preview
-↓
-確認
-```
-
-### Property presentation
-
-研究：
-
-- image ratio
-- title hierarchy
-- price
-- area
-- layout
-- address
-- metadata
-- card hierarchy
-- frame
-
-### Image interaction
-
-研究：
-
-- select
-- replace
-- move
-- resize
-- crop
-- reset
-- delete
-- contextual controls
-
-### Editing
-
-研究：
-
-- direct selection
-- modal
-- toolbar
-- progressive disclosure
-- replace-first
-
-建立：
-
-`DM_REFERENCE_MAP`
-
-每項記：
-
-- source
-- active / inactive
-- 可借鑑內容
-- 591 不應照搬的部分
-- 591 採用風險
-
----
+如果使用者指定 reference，只研究與 Target 實際需求相關的 active path，並建立 `REFERENCE_MAP`。Reference 一律 READ ONLY，不得複製整套 UI、CSS、state architecture 或需求。
 
 # 11. DO NOT COPY DM
 
@@ -476,32 +384,32 @@ DM 是參考，不是設計答案。
 - 整套 DM CSS 搬過來
 - 整套 DM state architecture 搬過來
 - 為了視覺直接複製 DM component
-- 把 591 變成 Canva
-- 把 591 變成自由 Sticker canvas
+- 把 Target Project 變成 Canva
+- 把 Target Project 變成自由 Sticker canvas
 
 正確：
 
 ```
-591 真實需求
+Target Project 真實需求
 +
-591 現有架構
+Target Project 現有架構
 +
 DM 成熟互動
 +
 UI/UX Pro Max
 =
-591 專用方案
+Target Project 專用方案
 ```
 
 ---
 
 # 12. DESIGN PRINCIPLE
 
-591 的目標不是「功能最多」。
+Target Project 的目標不是「功能最多」。
 
 目標：
 
-**讓房仲最快完成核心工作。**
+**讓目標使用者最快完成核心工作。**
 
 優先：
 
@@ -553,7 +461,7 @@ UI/UX Pro Max
 
 # 14. VISUAL DIRECTION — PRODUCE 3
 
-依實際 591 產品定位，至少提出三套。
+依實際 Target Project 產品定位，至少提出三套。
 
 ### A — Premium Real Estate
 
@@ -597,7 +505,7 @@ UI/UX Pro Max
 - decorative motion
 - 為了漂亮犧牲工作效率
 
-如果 591 真實產品定位與上述方向不符：
+如果 Target Project 真實產品定位與上述方向不符：
 
 以 source evidence 為準，提出更適合的方向。
 
@@ -645,7 +553,7 @@ Static HTML prototype。
 - sandbox
 - isolated preview area
 
-不得修改原始 591 source。
+不得修改原始 Target Project source。
 
 ### Option 3
 Rendered mockup。
@@ -658,7 +566,7 @@ Rendered mockup。
 
 # 17. DEFAULT / EMPTY STATE
 
-如果 591 有 draft / editor：
+如果 Target Project 有 draft / editor：
 
 新資料不應看起來像工程測試畫面。
 
@@ -679,7 +587,7 @@ Default content 只允許用於：
 
 # 18. DESIGN SYSTEM
 
-建立 591 專用 tokens。
+建立 Target Project 專用 tokens。
 
 至少：
 
@@ -719,7 +627,7 @@ Default content 只允許用於：
 - letter-spacing
 - usage
 
-涵蓋實際 591 會用到的：
+涵蓋實際 Target Project 會用到的：
 
 - page title
 - section title
@@ -810,11 +718,11 @@ Icon-only 必須有 tooltip / accessible label。
 
 在：
 
-`APPROVE_591_LOCAL_MERGE`
+`APPROVE_Target Project_LOCAL_MERGE`
 
 以前：
 
-**原始 Ticenpi591 working tree 永遠 READ ONLY。**
+**原始 Target Project working tree 永遠 READ ONLY。**
 
 禁止：
 
@@ -885,17 +793,17 @@ READ ONLY
 Visual proposal + prototype
 
 User:
-APPROVE_591_UI_IMPLEMENTATION
+APPROVE_Target Project_UI_IMPLEMENTATION
 
 ↓
 
 GATE 2
-Isolated 591 Preview Worktree
+Isolated Target Project Preview Worktree
 
 ↓
 
 User:
-APPROVE_591_LOCAL_MERGE
+APPROVE_Target Project_LOCAL_MERGE
 
 ↓
 
@@ -919,9 +827,9 @@ Exact token 才算核准。
 
 必須輸出：
 
-## 591 CURRENT STATE
-## 591 USER FLOW MAP
-## 591 COMPONENT MAP
+## Target Project CURRENT STATE
+## Target Project USER FLOW MAP
+## Target Project COMPONENT MAP
 ## CURRENT UX PROBLEMS
 ## DM REFERENCE MAP
 ## THREE VISUAL DIRECTIONS
@@ -939,7 +847,7 @@ Exact token 才算核准。
 
 最後：
 
-`PHASE_1_COMPLETE_WAITING_FOR_APPROVE_591_UI_IMPLEMENTATION`
+`PHASE_1_COMPLETE_WAITING_FOR_APPROVE_Target Project_UI_IMPLEMENTATION`
 
 停止。
 
@@ -949,19 +857,19 @@ Exact token 才算核准。
 
 收到：
 
-`APPROVE_591_UI_IMPLEMENTATION`
+`APPROVE_Target Project_UI_IMPLEMENTATION`
 
 才可以實作。
 
-**仍然禁止修改原始 591 working tree。**
+**仍然禁止修改原始 Target Project working tree。**
 
 建立：
 
-`F:\00-Ticenpi-SaaS\Ticenpi591_ui_preview_wt`
+`F:\00-Ticenpi-SaaS\Target Project_ui_preview_wt`
 
 或：
 
-`F:\00-Ticenpi-SaaS\.ui-preview\Ticenpi591`
+`F:\00-Ticenpi-SaaS\.ui-preview\Target Project`
 
 實際路徑由 agent 依目前 repo 狀態決定並回報。
 
@@ -969,7 +877,7 @@ Exact token 才算核准。
 
 # 27. PREVIEW BASELINE
 
-如果原始 591 有 dirty WIP：
+如果原始 Target Project 有 dirty WIP：
 
 不能只從 HEAD 建 preview 然後假設等於目前產品。
 
@@ -1005,7 +913,7 @@ Exact token 才算核准。
 
 GATE 2 必須：
 
-1. 查原始 591 實際 port
+1. 查原始 Target Project 實際 port
 2. 找未占用 preview port
 3. 啟動 isolated preview
 4. 回報 actual URL
@@ -1184,14 +1092,14 @@ Preview 必須跑：
 輸出：
 
 ```
-591 UI PREVIEW READY
+Target Project UI PREVIEW READY
 
 Target:
-<resolved Ticenpi591 path>
+<resolved Target Project path>
 
 Reference:
-F:\00-Ticenpi-SaaS\TicenpiDM
-DM modified: NO
+F:\00-Ticenpi-SaaS\<user-specified reference project only>
+Reference modified: NO
 
 Original:
 <actual original URL>
@@ -1199,7 +1107,7 @@ Original:
 Preview:
 <actual preview URL>
 
-Original 591 source modified: NO
+Original Target Project source modified: NO
 
 Approved design:
 ...
@@ -1227,7 +1135,7 @@ Accessibility:
 
 Original dirty WIP preserved: YES
 Original source changed: NO
-DM source changed: NO
+Reference source changed: NO
 Docker changed: NO
 Staging changed: NO
 Production changed: NO
@@ -1237,7 +1145,7 @@ Pushed: NO
 
 最後：
 
-`PREVIEW_READY_WAITING_FOR_APPROVE_591_LOCAL_MERGE`
+`PREVIEW_READY_WAITING_FOR_APPROVE_Target Project_LOCAL_MERGE`
 
 停止。
 
@@ -1247,11 +1155,11 @@ Pushed: NO
 
 只有：
 
-`APPROVE_591_LOCAL_MERGE`
+`APPROVE_Target Project_LOCAL_MERGE`
 
 才可以把 Preview 差異合回：
 
-`<resolved Ticenpi591 path>`
+`<resolved Target Project path>`
 
 之前永遠 READ ONLY。
 
@@ -1283,7 +1191,7 @@ PASS 後：
 
 建議：
 
-`feat: refine 591 ui workflow`
+`feat: refine Target Project ui workflow`
 
 **DO NOT PUSH。**
 
@@ -1305,10 +1213,10 @@ Push 必須另取得使用者明確授權。
 
 立即停止：
 
-1. 找不到 591 repo
-2. 無法確認真正 591 UI
+1. 找不到 Target Project repo
+2. 無法確認真正 Target Project UI
 3. 找不到 UI/UX Pro Max
-4. DM 必須被修改
+4. reference 必須被修改
 5. preview 無法匹配 dirty WIP
 6. preview 會污染正式資料
 7. 必須 DB/schema migration
@@ -1332,7 +1240,7 @@ Push 必須另取得使用者明確授權。
 必須回答：
 
 ```
-一個第一次使用 591 的房仲，
+一個第一次使用 Target Project 的房仲，
 是否可以更快理解目前要做什麼，
 更少步驟完成核心工作，
 更少犯錯，
@@ -1346,7 +1254,7 @@ Push 必須另取得使用者明確授權。
 - 現有資料安全
 - Preview 可驗證
 - tests/build 通過
-- DM 沒有被修改
+- reference 沒有被修改
 
 全部成立時，才能宣告完成。
 
@@ -1355,25 +1263,25 @@ Push 必須另取得使用者明確授權。
 # FINAL RULE
 
 ```
-先看懂真正的 591
+先看懂真正的 Target Project
 ↓
 讀 UI/UX Pro Max
 ↓
-找出 591 真正痛點
+找出 Target Project 真正痛點
 ↓
 只讀研究 DM 好用的互動
 ↓
-提出 591 專用方案
+提出 Target Project 專用方案
 ↓
-APPROVE_591_UI_IMPLEMENTATION
+APPROVE_Target Project_UI_IMPLEMENTATION
 ↓
 建立 isolated Preview Worktree
 ↓
 驗證實際 UI
 ↓
-APPROVE_591_LOCAL_MERGE
+APPROVE_Target Project_LOCAL_MERGE
 ↓
-才合回原始 591
+才合回原始 Target Project
 ↓
 local checkpoint commit
 ↓
@@ -1382,8 +1290,8 @@ local checkpoint commit
 
 **任何階段不得跳過 approval gate。**
 
-**不要把 Letter 規則帶入 591。**
+**不要把 Letter 規則帶入 Target Project。**
 
-**不要把 DM 搬進 591。**
+**不要把 DM 搬進 Target Project。**
 
 **先證據，後設計；先 Preview，後合併。**
