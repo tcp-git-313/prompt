@@ -3,6 +3,21 @@
 指定執行模型：GPT-6 Luna；建議 thinking level：xhigh。
 工作語言：繁體中文。你是執行者，從中斷點接續，不重做已完成的工作。
 
+修訂：2026-10-02。執行紀律已補強退出碼、失敗狀態、E2E 雙重證據、Secret 與回滾選路；任何提示詞都不能保證模型或交付物「100% 不出錯」，完成判定必須靠實際測試與證據。
+
+## 0.1 資料夾規則：專案只有 TicenpiSign，任務產出放外部
+
+使用者已更正先前的「ticenpi591」筆誤，本任務一直是 TicenpiSign，不可改成 591。
+
+- 原專案 repo 固定 `F:\00-Ticenpi-SaaS\TicenpiSign`。只在其中保留必要且應進版控的程式、測試、部署／操作腳本與既有專案文件的必要更新；不另建 Sign 副本資料夾或塞入本輪報告、截圖、下載檔、提示詞、工作日誌、archive。
+- 本輪新產出統一放 `F:\Ticenpi-task-artifacts\sign-production-commercial-docker-luna-closeout\<本輪時間戳>\`，設一次 `$TaskArtifactRoot`，所有報告、操作手冊、PDF／截圖／hash／log／publish payload／測試暫存都由此衍生。
+- 新 detached worktree 僅放 `F:\Ticenpi-task-artifacts\sign-worktrees\<用途-時間戳>\`；不可再建立 `F:\00-Ticenpi-SaaS\.worktrees\sign-*`、`TicenpiSign_release_wt` 或 repo 內的巢狀 repo。本輪測試暫存目錄也重導外部；既有工具必要的 build/dist 或 CI 產物依原契約處理，不能借此新增報告目录。
+- 既有 `.worktrees\sign-main-next` 只供核對與續接；如需收掉必須先證明無獨有 commit/WIP、保留所需 ignored 資料，用 Git worktree 管理命令，不用 Move-Item 搬 checkout 或刪其他工作階段的資料。
+- 舊 WIP archive 留在已指定的 `F:\Ticenpi-git-archive\`，不用搬回專案。既有歷史文件與其他產品資料不大搬家。
+- 本提示詞發布與續接核對資料已從原 `F:\00-Ticenpi-SaaS\artifacts\sign-resume-audit-20261002` 移到 `F:\Ticenpi-task-artifacts\sign-resume-audit-20261002`，逐檔 SHA 已核對，原位置不再使用。
+- 中央發佈證據使用已支援的 `TICENPI_RELEASE_EVIDENCE_ROOT`：對 Sign 命令在程序範圍內固定設為 `F:\Ticenpi-task-artifacts\release-evidence`，release/promote/一鍵腳本都必須讀寫同一 root；不得改全域或使用者環境變數影響其他產品。既有 `F:\00-Ticenpi-SaaS\.release-evidence\sign` 首先唯讀逐檔核對，必要時完整複製到外部 root 的 `sign`，驗證 SHA，保留原歷史不覆寫。不能只搬 accepted 檔、造空 history 或丟失 VOID-NOTE。操作包將此 root 固定封裝，使用者不必另貼變數；外部流程不能誤讀原 root 的舊證據。
+- 確認所有會寫證據的相關工具尊重這個外部 root；若發現硬編碼，先修限於 Sign 的最小入口並回歸，不靜默回退寫原目錄。新寫入／移動／遞迴刪除前，解析最終絕對路徑並確認在指定外部 root，使用同一 PowerShell 的 LiteralPath 操作。
+
 ## 1. 最終目標與授權
 
 完成 TicenpiSign 的 main 整理、Production 切換／回滾腳本修正與測試、Staging 固定 Seat 夾具真人 E2E、正式 record-accepted，最後交付「使用者在 Windows PowerShell 7 貼一行即可依序部署並切換 Production」的可執行腳本與預期結果。
@@ -28,7 +43,7 @@
 
 ## 2. 必讀資料，依此順序
 
-1. `F:\00-Ticenpi-SaaS\artifacts\sign-resume-audit-20261002\RESUME.md`
+1. `F:\Ticenpi-task-artifacts\sign-resume-audit-20261002\RESUME.md`
 2. 同目錄 `main-wip-status.txt`
 3. `F:\00-Ticenpi-SaaS\deploy\docs\system\TICENPI_SYSTEM_CURRENT_STATE.md`（B7、B8、B9、B21）
 4. `F:\00-Ticenpi-SaaS\deploy\docs\system\DELIVERY_WORKFLOW.md`（S0–S12、單一主線規則）
@@ -183,7 +198,7 @@ config-only 釘 digest 若 CI仍重建另組映像，不追逐新 digest，引�
 
 只有當現行 release 的正式 S7 矩陣全通過，才依實際工具介面 record-deployed及record-accepted；不帶未驗證旗標。正確區分 source與config，不手寫SHA、不改舊history、不用作廢release。
 
-驗證 `.release-evidence\sign\accepted-staging.json` status=ACCEPTED，runtime/health/auth/commercial/e2e都true；完整source/digest與運行容器、CI、證據一致。
+驗證 `F:\Ticenpi-task-artifacts\release-evidence\sign\accepted-staging.json` status=ACCEPTED，runtime/health/auth/commercial/e2e都true；完整source/digest與運行容器、CI、證據一致。record、status 與 promote 必須使用同一外部證據 root。
 
 ## 9. N5：交付 Production 操作包，只準備不執行
 
@@ -200,7 +215,7 @@ config-only 釘 digest 若 CI仍重建另組映像，不追逐新 digest，引�
 必要交付檔案：
 
 1. 修正並測試的 `TicenpiSign\scripts\sign-production-cutover.ps1`（或保留其相容接口的薄入口）。
-2. `TicenpiSign\docs\handoffs\SIGN-PRODUCTION-READY.md`：凍結source/config/platform commit、CI、Staging accepted release、digest、env鍵名存在性、路由/port、初次切換與回滾差異、證據限制。
+2. `$TaskArtifactRoot\SIGN-PRODUCTION-READY.md`：凍結source/config/platform commit、CI、Staging accepted release、digest、外部證據root、env鍵名存在性、路由/port、初次切換與回滾差異、證據限制。操作手冊放外部，不新增到專案 docs/handoffs。
 3. 本輪獨立evidence資料夾、E2E matrix、腳本演練log、main/WIP reconciliation、hash清單。history不可改寫。
 4. 更新既有Sign交接與中央Sign合約卡/CURRENT_STATE，區分source/Docker-ready/Staging ACCEPTED/Production仍systemd；不得先寫Production已DEPLOYED。
 
@@ -212,6 +227,45 @@ config-only 釘 digest 若 CI仍重建另組映像，不追逐新 digest，引�
 - Rollback（明確本次舊systemd還原目標，失敗不能假成功）。
 
 各命令附預期結果、非零時停哪裡、能否重跑。Production真人canary與record-accepted另列使用者最小步驟；不把公司1088方案付款自動化或上架頁修改擴成此任務，也不宣稱尚未測的方案銷售／付款全鏈已通過。
+
+## 9.5 執行紀律與可核對證據
+
+本節補充前文，不覆蓋 Production／Supabase 寫入與真人登入界線。把以下要求做成腳本行为與測試，不只寫註解。
+
+### 9.5.1 外部命令退出碼與狀態隔離
+
+- 所有交付 PowerShell 腳本的 param 區之後、任何工作之前設定 `$ErrorActionPreference = 'Stop'`，用作用域明確的變數，不用 `$HOME`／`$home`／`$CODEX_HOME` 存本任務值。
+- Stop 不會在預設設定下自動處理 ssh/git/docker/npm/python 等 native command 的非零退出碼。每次命令後立即保存 `$LASTEXITCODE`，在下一次 native command 蓋掉它前依明確規則檢查、throw／非零退出；必要時共用 Invoke-CheckedNative helper。若使用 `$PSNativeCommandUseErrorActionPreference`，先核對支援的 PowerShell 版本和作用域，仍測退出碼傳播。
+- 中央部署 exit 3 是需人工決定，不是成功；不得轉成 exit 0 或 ACCEPTED。已預期的查詢非零（例如服務 inactive、grep無匹配、git diff有差異）須以明確分支處理，與關鍵操作失敗區分。
+- 遠端 Bash 區塊使用 `set -eEuo pipefail`，但它與 ERR trap 在 if／while／&&／||／! 等上下文有例外，不能當作全部命令必然自動停止的證明。關鍵 systemctl/docker/nginx/curl 寫入或驗證仍顯式檢查並在失敗時停止。
+- 禁止關鍵操作使用 `|| true`、catch空區塊、SilentlyContinue 或最後無條件印成功。唯讀探測不存在項目用可辨識的分支輸出狀態。
+- 顯式狀態：checked→env_ready→docker_ready→route_switched→external_verified→legacy_stopped；記錄實際完成的階段。失敗處理只補償本次已做的動作，不在切流之前誤還原舊備份，也不在回滾尚未成功時關閉提供服務的容器。
+- trap/finally 可清理本次受控暫存，但不可吞原失敗。主要動作與清理／回滾若都失敗，保留兩者結果與非零 exit，不捏造恢復成功。測試每個階段的故障注入、退出碼及禁止執行的後續動作。
+
+技術依據：[Microsoft PowerShell 外部命令錯誤處理](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_error_handling?view=powershell-7.6)、[GNU Bash 手冊](https://www.gnu.org/software/bash/manual/bash.html)。
+
+### 9.5.2 E2E 必須同時證明回應、產物與畫面
+
+- 截圖只能佐證，不可只憑「看起來正常」標 PASS；單一 DOM node／canvas 存在或 API 200 同樣不足，可能只是空容器、錯誤頁或尚未渲染。
+- 每項判定記錄：具體動作、使用者角色代號、URL與release、預期、觀察、判定與證據檔；拒絕路徑需真實403/契約 state與無資料，成功路徑需相應200/JSON語義與後續結果。
+- PDF 預覽须證明正確文件與兩頁完成渲染，而非空 canvas；依可用工具用 PDF載入結果／頁數、實際渲染完成訊號或渲染內容、可見畫面配對。簽署與下載須核對文件／案件關聯、產物SHA256／頁數及實際簽名位置，hash本身不證明正確內容或位置。
+- 等待確定條件（request完成、DOM顯示、渲染完成、下載完成），設有界timeout；不用固定sleep後猜PASS。不為取證執行未被browser工具授權的評估／網路／檔案操作。
+- 工具無法取證或需真人判讀：該項設 `EVIDENCE_STATE=WAITING_USER_MANUAL_VERIFY`，全任務 STATUS 保持 WAITING_USER。提供使用者具體待核對步驟；取得明確人工結果與可保存證據後才更新，不因畫面無法讀就編造DOM/API或誤標FAIL。
+- 本任務允許經 Sign Staging 產品正常UI/API建立、簽署與清理合成測試案件；「不寫Supabase」指你不得直接改中央身分／entitlement／Seat／schema或用service-role直寫，不禁止授權範圍內產品E2E正常產生測試業務資料。
+
+### 9.5.3 Secret 與 env 準備
+
+- Secret 不放 SSH命令列、URL、JSON公開payload、commit、log、截圖、PowerShell transcript；遠端區塊禁set -x，也不能記錄含Secret的展開命令。
+- 由遠端讀舊env固定白名單键，不使用 eval/source 執行未知env內容；安全解析、檢查重複键／格式與缺值，不印值。不得把密碼先抓回本機再串進ssh字串。
+- 若有必要且已授權的stdin傳輸，確認兩端不echo、不記錄payload；「stdin」本身不是不洩漏保證。
+- 此任务的必要新env檔當然需要落盤，權限600、原子建立／不覆蓋已存在檔、trap清理暫存；禁止無必要的Secret副本與公開落盤，而不是錯誤要求所有Secret永不落盤。AI仍不執行Production PrepareEnv，只測隔離副本邏輯，真實操作由使用者。
+
+### 9.5.4 回滾選路不可猜
+
+- 分成兩個獨立入口 `Invoke-SystemdFallbackRollback`（首次由systemd切換的故障）與 `Invoke-DockerPreviousRollback`（之後Docker版本間回滾）；兩個入口不互相呼叫，可共用純檢查／解析helper，避免複製安全檢查。
+- 以已驗證的本次metadata中 rollback_mode（systemd_fallback / docker_previous）、release、backup SHA、先前服務狀態選路；參數與metadata矛盾就拒絕。不能以「看到某個舊備份」或「容器有無」猜模式。
+- 註解及操作手冊說明可觀察的觸發條件、允許动作與成功後置條件，不要求輸出內部思考過程。
+- 日後Docker回滾必須使用中央release回滾工具、舊release-local compose与目标digest验证；若實查無此合法目標，非零拒絕，不回退systemd冒充成功。
 
 ## 10. 完成條件與回報格式
 
@@ -240,6 +294,8 @@ SOURCE / CONFIG / PLATFORM = <各實際40hex>
 CI = <exact SHA / run / 結果>
 DIGESTS = <backend / frontend>
 PRODUCTION_PREFLIGHT = PASS | WAITING_USER_PREPARE_ENV | FAIL
+E2E_EVIDENCE = PASS | WAITING_USER_MANUAL_VERIFY | BLOCKED: <具體原因>
+ARTIFACT_ROOT = <實際外部產出目錄>
 PRODUCTION = 舊systemd仍運作；本任務未寫入
 使用者執行：<真實完整單行Deploy命令>
 預期結果：<身分一致、Docker提供正式流量、舊systemd停止但可回滾、真實DEPLOYED>
@@ -249,5 +305,7 @@ PRODUCTION = 舊systemd仍運作；本任務未寫入
 ```
 
 不要只回答計畫，不要說「可以了」卻沒有測那條路徑。完成準備、Staging ACCEPTED與可核對的一鍵交付後，把Production執行交回使用者。
+
+最終答覆僅輸出上述純文字欄位區塊，不加前言、結語或自我評語。進行中的短進度、必要登入／處置確認不受此限制。頂層STATUS保留既定詞彙；未完成欄位填真實狀態與 `BLOCKED: <具體原因>`，不要保留範例或假命令。READY=NO時「使用者執行」欄不得給可切Production的Deploy指令，填 `BLOCKED: <第一未通過關卡>`，並補一欄「使用者下一步」列最小解除阻擋操作。READY=YES才交付已驗證路徑的Deploy命令。
 
 <!-- END: sign-production-commercial-docker-luna-closeout -->
