@@ -3,6 +3,48 @@
 指定執行模型：LUNA（Codex 模型選單 `gpt-6-luna`），thinking level：max。
 使用繁體中文，回報簡短；你是執行者，請實際完成工程、驗證與交付，不只提出計畫。
 
+## 零、執行規則：來源驗證、預設唯讀與資料集中
+
+以下規則適用所有階段；降低錯誤靠實作與測試，不宣稱提示詞能保證模型 100% 正確。
+
+### 0.1 所有新產生的 591 資料集中在唯一專案資料夾
+
+- 本機專案根目錄固定為 `F:\00-Ticenpi-SaaS\Ticenpi591`。不要在 `F:\00-Ticenpi-SaaS` 父目錄或其共用 artifacts／.worktrees／其他位置新建 591 專用資料夾，也不要新建另一個 ticenpi／591 repo 副本。
+- 提示詞、發布 payload／驗證紀錄、log、截圖、測試收據、臨時檔與機器可讀 checklist，統一放 `Ticenpi591\_charter\runtime\production-docker\` 下，依用途與時間分層；這是專案內既有 ignored runtime 路徑。
+- 新的 release evidence root 固定為 `F:\00-Ticenpi-SaaS\Ticenpi591\_charter\runtime\production-docker\release-evidence`。在本次 PowerShell 程序及子程序設 `TICENPI_RELEASE_EVIDENCE_ROOT`，讓 release.ps1、promote.ps1 讀寫同一個 root；工具會在其下建立 `591\accepted-staging.json`、history、current-production.json 等。不得永久修改使用者／機器環境變數或 PowerShell profile。
+- 先前共用的 `F:\00-Ticenpi-SaaS\.release-evidence\591` 只作唯讀歷史證據來源，不搬移、不刪除、不再寫入；不把舊 accepted 複製成新驗收。本輪有效紀錄由中央 release 工具產生到上述專案內 root。
+- 使用者 Execute／Rollback 入口也必須設定相同 evidence root。切換到任意 cwd 仍可找回相同證據，不能落回共用預設目錄。
+- 中央 deploy.ps1 目前在子程序 TEMP 下打包。以子程序專用 TEMP／TMP 或工具支援的顯式 tempDir，將本次打包／checksum／metadata 放到專案 `_charter\runtime\production-docker\tmp\`；核對所有實際輸出路徑，不永久改系統 TEMP。清理前驗證絕對 target 位於該任務路徑內，只移除本次建立的項目。
+- 臨時 detached worktree 放專案內 `_charter\runtime\production-docker\worktrees\`；先驗證 path 受專案根限制、被 Git ignore、無已有 worktree／檔案衝突，並確認打包不含其他 worktree、log 或 runtime 資料。不能滿足就停止此步驟，不改放父目錄。
+- 正式腳本放專案 `scripts\`，正式手冊放專案 `docs\` 或 `deploy\runtime-production\`，延用既有結構。不要將測試收據與發布 payload 納入程式碼 commit。
+- 中央 deploy repo 的既有 services.yaml、共用腳本、必要回歸測試與系統文件仍在原位做最小修改；這不是允許在 deploy repo 新增另一套 591 專用 artifacts／handoff 目錄。
+- 這項本機整理規則不要求搬移遠端 VPS 的 `/opt/ticenpi/...` 路徑，也不允許更動舊 systemd rollback 資料。不要為整理本機資料改壞伺服器布局。
+
+### 0.2 SHA／digest 必須有真實來源，驗證後固定
+
+- 本提示詞列的 SHA、digest、release id 是交接快照，不是目前狀態保證；先讀 CI 產物、Git 物件、OCI labels／RepoDigests 與 release evidence 交叉核實。
+- 建立有證據來源的部署選定紀錄，分欄保存 `artifact_source_commit`、`deploy_config_commit`、`ci_run_id`、`image_digest`、`accepted_staging_release_id`、`systemd_rollback_release_id`；不得相互代填。可變更欄位須重新通過其 gate。
+- `git rev-parse HEAD` 只描述該 checkout 的 HEAD，不足以認定映像 artifact source。artifact source 應取 CI 產物與 OCI revision 的一致值；Production 使用 accepted-staging.json 中已驗證的 source_commit。
+- compose 必須保留完整 `@sha256:...` 固定值，Production TICENPI_COMMIT_SHA 必須保留已驗證 source 的完整 literal；證據與文件也必須保存當時實際值。不採用「所有 SHA／digest／release id 都不能寫死」的建議。
+- 操作腳本從已核實的部署選定紀錄／accepted evidence 讀取固定目標，再與真實 CI、compose、runtime 比對。不得每次自動跟隨最新 main／latest／現行容器來替換選定目標；漂移時拒絕執行，不能讓目標跟著錯誤 runtime 改變。
+- git source／CI digest／OCI digest 要辨識 manifest index、platform manifest 與 image ID 的差異，避免拿 image ID 直接當 registry digest；全長值及來源存證，不靠模型補齊縮寫。
+
+### 0.3 PowerShell 與 Bash 分開寫、分開驗證
+
+- 本機用 Windows PowerShell，遠端用 Linux Bash；記錄實際 PowerShell 版本，交付命令與腳本必須可在使用者的指定 shell 執行。
+- 不把 `ssh ... << 'EOF'` 這種 Bash heredoc 直接寫進 .ps1。遠端腳本使用獨立 LF .sh 檔或 PowerShell 單引號 here-string，再以明確 UTF-8／LF、標準輸入傳給 `ssh ... 'bash -s --'`。
+- 優先以 ProcessStartInfo／明確參數傳遞處理 stdin 與 exit code；不能拼接任意輸入成 shell command。不要用 JSON.stringify 充當 shell quoting。
+- Bash 程式內不得混入 `$env:`、PowerShell cmdlet 或 Windows 路徑。單引號 here-string 中的 `$VAR`、`$(...)` 留給遠端 Bash 解譯，不讓本機 PowerShell 先展開；動態參數用嚴格 allowlist 與正確 quoting。
+- 測試包含 PowerShell parse、bash -n，以及含 `$`、引號、空白路徑和非 ASCII 文本的傳輸測試；不在 output／argv 洩漏機密。
+
+### 0.4 預設唯讀；腳本包含寫入，AI 不執行寫入
+
+- 未給模式時預設 Check／DryRun；Check／DryRun、Execute、Rollback 互斥，明確拒絕衝突參數。不要以傳一個旗標就跳過全部 gate。
+- Execute／Rollback 可以且必須包含使用者已要求的 Production 切換／恢復動作。禁止的是 AI 呼叫這些寫入動作，不是禁止生成可用的操作腳本。
+- 若使用 SupportsShouldProcess／-WhatIf，所有遠端副作用也須在 ShouldProcess gate 內，不能只加 attribute 就稱安全。採用等價的顯式預設唯讀模式也可，但必須有零遠端副作用測試。
+- DryRun 不為模擬而遠端建 temp／lock／backup、scp／pull／start／stop；只讀查驗允許，本機 log 存專案內。任何 user Execute 都先跑實際 gates，不能把 DryRun 的結果永久當通行證。
+- 不要求展示或規定模型私有思考。改以可審查的 checklist 文件，逐關記狀態、證據路徑、指令 exit code 與驗證日期；未知填 NOT_VERIFIED，不能先打勾再找證據。
+
 ## 一、任務與完成界線
 
 接續已進行的 Ticenpi591 主線整併工作，依中央 DELIVERY_WORKFLOW S0–S12 補齊缺口，做到「使用者拿到一行指令，即可按已驗證的流程切換 Production」的交付狀態。
@@ -152,13 +194,13 @@ Seat 夾具：沿用契約指定的 assigned 與 unassigned 一般使用者（ad
 
 證據齊全後，依中央 release.ps1 先 record-deployed 再 record-accepted；single image 的 backend/frontend digest 按工具契約填同一 digest。寫入 source_commit＝artifact source、deploy_config_commit＝部署設定 commit、CiRunId＝source 的真實 CI run、release_id＝實際 Staging release，不能抄舊值。
 
-重新讀 accepted-staging.json／history／release status，確認 status、e2e_verified、全部旗標、digest、commit、release 相互一致。只有全部必要路徑實測後才可宣告 STAGING ACCEPTED。
+所有 release／promote 入口先設定第 0.1 節 evidence root，再重新讀該 root 下的 accepted-staging.json／history／release status，確認 status、e2e_verified、全部旗標、digest、commit、release 相互一致。用不同 cwd 啟動做一次解析一致性測試。只有全部必要路徑實測後才可宣告 STAGING ACCEPTED。
 
 ### D. S9–S10：交付一行 Production 指令
 
 建立完整本機操作腳本（建議 `scripts/Invoke-591ProductionCutover.ps1`）與 `deploy/runtime-production/CUTOVER.md`；路徑可依 repo 現有 convention 調整，但最後指令不得有 placeholder。
 
-腳本至少提供互斥的唯讀 Check/DryRun、Execute、Rollback 模式。AI 只可跑唯讀模式及隔離測試；不能透過另一程序／排程／背景工作觸發 Execute 或 Rollback 寫 Production。
+腳本至少提供互斥的唯讀 Check/DryRun、Execute、Rollback 模式，未指定模式時預設唯讀。AI 只可跑唯讀模式及隔離測試；不能透過另一程序／排程／背景工作觸發 Execute 或 Rollback 寫 Production。生成的腳本應包含真正的切換／回滾程式碼，透過顯式模式與完整 gates 控制；不要把使用者可執行腳本誤寫成只有 echo 的假腳本。
 
 使用者 Execute 的單行指令須內建順序，不要求使用者自己拼多條 SSH 指令：
 1. 固定 target／service／accepted release／digest／source commit，重新核對主線與乾淨打包 source，拒絕漂移。
@@ -192,7 +234,7 @@ Seat 夾具：沿用契約指定的 assigned 與 unassigned 一般使用者（ad
 - 依中央範本更新 591 integration card、CURRENT_STATE 的 591 狀態與 B8/B9/B21 的產品範圍；保留 Sign／其他產品現況與歷史。
 - B8/B9 在 source 修好但 Production 未執行前，寫「591 source ready／Production still systemd」，不能標整個平台已解決。
 - 產生 `docs/PRODUCTION_DOCKER_HANDOFF.md`（或符合現有文件結構的同等檔案），列 S0–S12 已完成／待使用者狀態、來源與設定 commit、CI run、digest、Staging release、E2E 證據、使用者 Execute/Rollback 指令、預期輸出、失敗判讀、需人做的 S11 canary。
-- 測試與 runtime 證據存入明確的 artifacts／.release-evidence 路徑，不把密鑰、完整 token、個資或廣告資料提交。
+- 測試、runtime 證據與發布驗證全部依第 0.1 節存到唯一 Ticenpi591 專案內；正式腳本與文件延用專案結構，不在父目錄／共用 artifacts 產生 591 副本。不把密鑰、完整 token、個資或廣告資料提交。
 - 重要進度先短訊息告知，避免長時間無更新；正常已授權修正自行完成，不重複問是否繼續。
 
 ## 八、完成條件與最後回報
@@ -205,16 +247,34 @@ Seat 夾具：沿用契約指定的 assigned 與 unassigned 一般使用者（ad
 5. 原 systemd 回滾目標與資料保護已核實。
 6. AI Production mutation＝NO；Supabase／Cloudflare／DNS mutation＝NO。
 
-最後用繁體中文短報告：
+最後先完成專案內 `delivery-checklist.json`（格式可依既有 convention）：每項包含 PASS／FAIL／NOT_VERIFIED、evidence path、checked_at；不可只輸出無證據勾選符號。至少核對以下項目：
 
-狀態：READY_FOR_USER_PRODUCTION | WAITING_USER | PARTIAL | HARD_STOP
-Staging：release／source／deploy-config／digest／ACCEPTED 證據
-Production：仍是 systemd，AI 未寫入；唯讀 preflight 結果
-執行：一行可直接貼上的真實 PowerShell 指令
-預期：切換成功時實際會看到的成功標記與關鍵 identity／digest
-回滾：一行可直接貼上的真實指令與預期舊版恢復結果
-證據：可點的 handoff／測試／release 檔案
-仍待使用者：Production 執行及 S11 真人 canary（若另有阻塞，逐項明列）
+- [ ] Artifact source／config commit／CI／digest／release 已分欄且交叉核實。
+- [ ] Fixed digest 與 Production literal source 正確，沒有跟隨 latest 或任意 HEAD。
+- [ ] 本機 PowerShell／遠端 Bash 語法、引號與編碼測試通過。
+- [ ] 未指定模式與 DryRun 沒有任何遠端副作用。
+- [ ] Execute／Rollback 有真實實作，AI 未執行 Production 寫入。
+- [ ] 原 systemd snapshot／Fernet key／未知備份資料完整保護。
+- [ ] 新的 591 交付資料與 release evidence 全在唯一專案根內，入口共用同一 evidence root。
+- [ ] 未修改 Supabase schema／資料／設定、Cloudflare、DNS；測試登入界線有紀錄。
+- [ ] Staging ACCEPTED 的全部必要證據真實存在；缺項未偽填旗標。
+- [ ] Source CI、promotion DryRun 與 Production 唯讀 Check 都有實際結果。
+
+若必要項目未 PASS，狀態不能是 READY_FOR_USER_PRODUCTION；精確列缺項，不宣稱 100% 保證。
+
+<output_format>
+最後用繁體中文，只輸出以下欄位；不加前言後語。方括號是格式說明，交付時換成真實值，未完成填 `BLOCKED: 原因`，不得保留 placeholder。缺 gate 時「執行」欄明確寫不可執行；回滾尚未建立時也不能虛構指令。
+
+狀態：[READY_FOR_USER_PRODUCTION | WAITING_USER | PARTIAL | HARD_STOP]
+Staging：[實際狀態；release／source commit／deploy-config commit／CI run／digest；E2E 結果]
+Production：[唯讀實查 systemd 或 docker；preflight 結果；AI 寫入＝NO]
+資料：[唯一專案內的新 evidence root／handoff 路徑]
+執行：[無 placeholder 的一行 PowerShell 指令，或 BLOCKED 原因]
+預期：[成功標記、關鍵 identity／digest，不能稱已在 Production 實測]
+回滾：[無 placeholder 的一行指令與舊版恢復結果，或 BLOCKED 原因]
+證據：[可點的 handoff／delivery-checklist／測試／release 檔案]
+仍待使用者：[Production 執行、S11 真人 canary，及其他真正人工作業]
+</output_format>
 
 不要在最後只貼計畫、只說「可以幫你」，或未實測就說「好了」。你要把授權範圍內的所有工作實際完成，停在使用者執行 Production 的界線。
 
