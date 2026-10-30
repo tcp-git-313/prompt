@@ -22,8 +22,8 @@
 
 ### 原始碼與交付
 
-- 原始碼根目錄：`F:\內部工具\TicenpiMemo`
-- 使用者可取用的 Installer、EXE、報告、截圖：`F:\內部工具\TicenpiMemo\outputs`
+- 原始碼根目錄：`F:\TicenpiMemo`
+- 使用者可取用的 Installer、EXE、報告、截圖：`F:\TicenpiMemo\outputs`
 - 專案自己的暫存、合成資料、測試備份：放在專案內 `work` 或獨立測試資料目錄。
 - 執行時資料根目錄：目前 Windows 使用者的 `%APPDATA%\TicenpiMemo`。
 
