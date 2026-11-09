@@ -1,11 +1,69 @@
-# Ticenpi-Voip：正常對話、短句保留與 Shadow 可驗收性建置
+# Ticenpi-Voip：Kimi K3.1 Pro 統籌 OpenCode Go 平行修復與驗收
 
-目標執行模型：DeepSeek V4.1-Flash，Thinking enabled，reasoning effort high。
+主控模型：OpenCode Go 的 Kimi K3.1 Pro（`opencode-go/kimi-k3.1-pro`），Thinking enabled，high；只透過本機實際支援的 variant 設定，不能關閉 thinking。
+執行模式：Kimi 主控 + 已驗證可用的 OpenCode Go 模型子代理，依下列責任與依賴真正平行執行。DeepSeek V4.1 Flash 是子任務模型之一，不再是唯一主控。
 任務基準日期：2026-11-09，Asia/Taipei。
 
 你是接手 Windows 本機專案的工程 Agent。直接閱讀、重現、修復、執行回歸及交接，不要只產出計畫、提案、工具空殼或新的任務提示詞。每個結論必須來自你實際讀到的原始碼、音訊、設定與執行結果。
 
+使用者已要求本輪盡力一次完成授權範圍內的全部可處理問題。不要做完一個小步驟就回覆「下一步等你決定」；主控必須把發現、修復、失敗撤回、整合、回歸、文件與本輪自有變更本機 commit 接續做完。不能完成的項目必須有具體證據與明確界線，不能用待辦清單代替實作，也不能為了聲稱一次完成而虛構驗收。
+
 模型必須運行於具檔案與終端工具的 IDE/Agent；純聊天介面不能存取本機 F:。沒有本機工具或錄音無法讀取時，明說實際阻礙與 NOT_RUN，不得假裝已建置。工具、context7、codebase-memory 有提供才使用；依專案 AGENTS.md 使用結構索引，未索引或覆蓋不足時直接讀檔/rg，不宣稱查過不存在的索引。
+
+## 0. Kimi 主控與 OpenCode Go 平行委派契約
+
+### 0.1 先驗可用性，限 Go 路由
+
+2026-11-09 只讀查核：本機 OpenCode 1.19.0；`opencode models opencode-go` 列出了以下模型。這是清單證據，不代表本次帳戶額度、tool call、並發與每條路由都已實際推論成功。開始時再用已安裝 CLI 的 help／`/models`／models 指令核對；不得捏造 model ID 或未支援的 delegate API。
+
+| 角色 | 優先模型 ID | 責任與推理使用 |
+|---|---|---|
+| 主控／整合裁決 | `opencode-go/kimi-k3.1-pro` | high thinking；讀總體需求、分工、凍結介面、裁決根因、整合和最終驗收 |
+| 短期 scout | `opencode-go/qwen3.8-flash` | 低成本讀取定位、來源清單、版本/hash、失敗事件索引；不作未證實的根因裁決 |
+| S：Shadow 契約／排程修復 | `opencode-go/deepseek-v4.1-flash` | high（路由支援時）；唯一修改隔離 semantic_shadow、其 tail/queue/LCS/generation 邏輯及專屬測試者 |
+| P：正常對話／writer | `opencode-go/kimi-k2.7-code` | 使用已支援的預設推理；隔離 streaming server、walker/P0、writer/ledger 及專屬測試 |
+| E：基準／證據／指標 | `opencode-go/qwen3.7-plus` | 使用支援的預設推理；snapshot 載入、replay/audit/metrics、reference manifest、timeline 和唯一 ASR 測試 runner |
+
+先驗證主控與將使用的工作模型可用，盡量將最小工具可用性驗證合併進第一個實際小任務，不輪流對所有模型作無意義測試。小模型無法可靠處理 E 的時鐘／統計邏輯時，由主控檢查失敗證據後，僅將該有界任務改派 Go 的 DeepSeek Flash，不把全部工作升到昂貴模型重跑。
+
+只允許 `opencode-go/`。主控 Kimi 不可用時不可冒充 Kimi 或默默改成其他 provider；記錄阻礙。工作模型限流／不可用時，主控可在已確認可用的 Go 模型中明確改派同一任務，保留原路由／原因與重試紀錄。有限次重試並遵守 retry-after，不反覆打滿額度。不得開 Extra Usage、付費餘額後備、購買額度或要求使用者在聊天貼 secret。
+
+先讀專案 `.omo/omo.jsonc` 及實際 OpenCode/OmO 版本、可用 task/agent 工具與 schema；不要把其他版本設定直接套用。本專案已有 Kimi 主控、Go-only 與關閉跨 provider fallback 的設定。優先用本次 session 的既有委派能力；若角色無法選到指定模型，允許為本輪要求對專案級路由作最小、可回復且經 schema 驗證的調整，先存本機原檔/hash。不可更動使用者全域設定、credentials、其他專案、IDE 插件版本，或恢復被關閉的跨 provider fallback。不要同時啟動多個 Prometheus/Atlas/Sisyphus 高階規劃鏈反覆轉交同一需求。
+
+### 0.2 平行工作圖與單一寫入者
+
+預設同時 3 個 worker + 1 個 Kimi 主控；實際工具/帳戶上限更低就自動縮小，非必要不增加。這是 LLM/CPU 工作並行數，不是 ASR/GPU 並發數。
+
+1. Kimi 先讀核心文件／Git／保護範圍，建立一次共享基準與工作圖；scout 可以同時做指定路徑的 inventory、hash 和結果索引，完成就釋放，不常駐無限搜尋。
+2. S、P、E 隨後分別在互斥檔案並行。E 先定最小事件欄位／載入介面，S/P 不等待完整報告即可各自完成有界失敗重現與單元修復。
+3. S 是隔離 semantic_shadow 的唯一寫入者。E 對 LCS/reference 的發現交給 S 修，不自行改同一檔。P 不改排程；S 不改 streaming server/walker；E 不改這兩組產品邏輯。
+4. 主控預先公布每個任務的絕對檔案／測試責任、允許修改範圍、依賴、驗收命令與輸出路徑。明確告訴每位 worker：你不是唯一作者，不可還原他人變更。原本 5 檔 dirty WIP 不分配為可直接覆蓋檔案。
+5. 每位 worker 可建立自己的專屬測試，不同 worker 不共同改一個大型測試檔；共享介面變更只由責任人作最小實作，其他人收到差異契約後調整，不能複製出互不相容的 observer。
+6. S/P 就緒後由 Kimi 審 diff、檢查模組/hash 與介面，授權 E 執行一次整合版的離線基準／A/B。只有 E runner 或主控持有本輪 ASR lane；其他 worker 不啟動 TEA、不併發推論、不讀寫它的 PID/state/results。CPU 分析與程式修復可繼續平行。
+7. 有失敗就帶最小證據回責任 worker，僅修失敗路徑再回歸；主控保持全任務 ledger，逐項移除可修的失敗，不每次向使用者問「是否繼續」。真正缺憑證／權限／原始證據的項目標出阻礙，其他有獨立價值的工作照做。
+8. 由 Kimi 單獨負責整合版、管理文件與本機 commit。worker 不各自 commit 共享 repo、不切分支、不操作 Git index、不互相覆蓋 patch。需要獨立審查時沿用已完成角色的精簡上下文，針對最終 diff/證據檢查，不另開全 repo 審計。
+
+必須透過實際提供的 task/subagent/background 工具建立工作並保留 agent/session ID、model ID 與起訖時間，確認獨立任務執行時間確有重疊；不能把先後完成的 3 次普通回覆稱為平行。若工具只接受 agent/category 而沒有 model 參數，就經已驗證的 session／專案角色設定選模型，不捏造參數。若環境根本沒有子代理或真正背景委派能力，明說「平行執行 NOT_RUN」並完成可做的序列工作，不假裝多模型已運作或自建一套 agent 平台。
+
+### 0.3 Token 與時間節省規則
+
+- 完整需求與核心文件由 Kimi 統整一次；每位子代理只拿必要的 AGENTS 安全規則、任務、來源/行號、相關程式與已確認證據。不要把完整聊天歷史、大量原始 log、所有文件、錄音或全量逐字稿複製給每位代理。
+- 共用一份精簡 context pack：HEAD/dirty 保護、scope、來源 hash、參數、結構定位、有效基準、已證根因、介面與產物索引，目標約 1500 tokens；子任務額外 packet 目標 800 tokens 內，必要時可放寬但須有實際需要。代理仍須讀任務觸及的真實程式，不可用摘要代替必要讀檔。
+- 委派 packet 明列 task_id、model_id、責任檔、只讀檔、依賴、已做查詢、待證假設、驗收命令、輸出與停止條件；避免重複掃描同一範圍。沿用既有 worker 處理相同領域的修正，不對同一問題反覆建立新 agent。
+- 子回報目標 500 tokens 內：結論、diff/產物路徑、版本/hash、實際命令與結果、剩餘失敗、對主控的必要決策。完整 trace 放本機，主控按事件精讀，不回傳整份 log。不可隱藏失敗或為省 token 省掉驗證。
+- 模型做判斷，Python/既有工具做 hash、搜尋、表格、分位數與逐窗對帳；不要把 75 秒全長所有窗口反覆貼到 LLM 讓它計算 median/P90。
+- Kimi 不逐行重做每個 worker 已完成的工作；讀有界 diff、核對關鍵證據、跑整合回歸。只有爭議、相互矛盾或測試失敗才深入重查。
+- 沒有新改動、失敗或未解疑慮，不重跑昂貴的全量 ASR。保留同參數 3 對公平 A/B 的必要測量；中途定位用最小失敗重現，最後只對整合版本跑必要完整測量。
+- 保存實際 task/agent ID、model/provider、階段開始結束、重試/升級、輸入/輸出/cache token 或 allowance（工具有提供才記），並發峰值、總 wall time 和被重用的結果。未提供的數據寫 UNKNOWN，不宣稱節省了沒有比較基準的百分比。
+- 不要求模型輸出私有思考過程；只要可審查的根因摘要、證據與決策。使用支援的較低推理做 scout/格式化，Kimi 主控與高風險語意／排程裁決才維持 high。
+
+### 0.4 一次交付完成條件
+
+任務 ledger 至少包含 S0-tail、S0-baseline、LCS 分支覆蓋、P0、A、B、C、整合回歸、保護範圍比對、文件與本機保全。每項都要有責任人、實際產物及 PASS/FAIL/INSUFFICIENT DATA/NOT_RUN，不能以「已派給子代理」結案。
+
+在授權範圍內，自主完成小修復、候選比較、失敗撤回、必要測試與本輪自有變更本機 commit，最後才一次給完整交接；不要求使用者在每個步驟間選模型或批准例行動作。例外只有真正需要使用者憑證、受保護資料權限，或本任務明確禁止的正式部署／真人外撥；不要為追求一次完成突破這些限制。
+
+既有歷史 TX/真人真值缺失不能靠委派補造。若某項因不可替代資料仍不通過，其他可完成修復必須完成，結案列清原始阻礙、已排除的技術原因與最小後續需求，不能把所有問題丟回使用者，也不能保證本輪一定使產品全通過。
 
 ## 1. 任務成果與禁止事項
 
@@ -65,7 +123,7 @@ docs/VOIP_OFFLINE_REPAIR_HANDOFF.md
 docs/VOIP_STATUS.md
 ```
 
-另有 `.opencode/`、`data/_backup/` 未追蹤；不動它們或 IDE 模型路由設定。
+另有 `.opencode/`、`data/_backup/` 未追蹤；保留不動。模型路由只允許依 §0.1 為本輪多模型委派所需的 session／已追蹤專案級最小調整，不變更全域或未追蹤 IDE 設定。
 先保存這 5 檔的本機 diff/hash 清單，保留原路徑內容。不得代為提交既有 WIP；本輪在新的有日期隔離目錄作必要修復，記錄來源 snapshot，讀取現有測試當回歸基準。本輪自有且驗證後的變更依 AGENTS.md 作本機 commit，只精確 stage 本輪路徑，不夾帶他人變更。不要因本機 commit 再停下來索取已由 AGENTS.md 提供的例行授權。
 
 正式 engine 基準 SHA256：`39634da1f7f5059e7d7ee1999a1bb36342d791bc5bd696dad88ac8ffee4b8892`。本輪開始／結束均唯讀比對，保留保護範圍 diff，不操作正式服務。
@@ -226,9 +284,11 @@ reference 可信度與 caller/echo 的真值標註是兩回事。RX/TX mixed 有
 
 不要回覆「等你決定下一步」而漏掉已授權的本輪工作；完成能獨立處理的部分。真正無法存取來源或缺少不可替代證據時，保留精確阻礙與已完成結果，不能補造證據。
 
-## 執行模型設定來源
+## 執行模型與平行路由來源
 
-- 官方模型名稱與 API alias：<https://www.deepseek.com/en/news/deepseek-v4-1-flash/>（`deepseek-flash`）。
-- 官方 Thinking 設定：<https://api-docs.deepseek.com/guides/thinking_mode/>（Thinking enabled、reasoning_effort high；使用既有 IDE 支援的相應設定，不為本任務改全域模型路由）。
+- 本機 `opencode models opencode-go` 是當時已實際執行的 provider/model 清單證據；模型目錄可能更新，開始時再核對，不能把列在清單當成帳戶已有足夠額度或已成功推論。
+- OpenCode Go 官方模型與方案文件：<https://opencode.ai/docs/console/go/>；必須使用 `opencode-go/` 路由，不等於 Kimi 自家訂閱。
+- Kimi 官方 OpenCode 文件：<https://www.kimi.com/code/docs/en/third-party-tools/opencode.html>；K3.1 Pro 需 thinking，high 為建議 variant；實際 Go 路由支援仍以本機版本／工具回應為準，不為本任務安裝或切換到 Kimi For Coding provider。
+- DeepSeek 子代理推理設定來源：<https://api-docs.deepseek.com/guides/thinking_mode/>；Go 實際 model ID 使用已驗證的 `opencode-go/deepseek-v4.1-flash`，不要把直連 API 的 `deepseek-flash` 當成 Go 路由 ID。
 
-任務結束標記：TICENPI_VOIP_DIALOGUE_SHADOW_BUILD_PROMPT_END
+任務結束標記：TICENPI_VOIP_KIMI_GO_PARALLEL_BUILD_PROMPT_END
